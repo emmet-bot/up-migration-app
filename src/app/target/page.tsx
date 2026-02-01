@@ -36,6 +36,7 @@ export default function TargetPage() {
     isInMiniAppContext,
     contextAddress,
     requestUpImport,
+    isContractAddress,
   } = useWallet();
 
   const [step, setStep] = useState(0);
@@ -67,7 +68,8 @@ export default function TargetPage() {
     setError(null);
   }, []);
 
-  // Step 3: Generate authorization link (or use UP import if available)
+  // Step 3: Generate authorization link
+  // CRITICAL: We must get the correct controller address from up_import
   const handleGenerateAuth = async () => {
     if (!selectedProfile || !network || !address) {
       setError('Missing profile, network, or wallet connection');
@@ -80,24 +82,31 @@ export default function TargetPage() {
 
     try {
       const profileAddress = selectedProfile.id as `0x${string}`;
+      let controllerAddress: `0x${string}` | null = null;
 
-      // If in mini-app context, try UP import first
-      // This allows the parent app (Universal Everything) to handle authorization directly
-      if (isInMiniAppContext) {
-        setImportStatus('importing');
+      // Step 1: Try to get controller address via up_import
+      // This is the CORRECT way to get the controller address
+      setImportStatus('importing');
+      
+      try {
+        console.log('[Target] Calling up_import for profile:', profileAddress);
+        const importResult = await requestUpImport(profileAddress);
         
-        try {
-          const result = await requestUpImport(profileAddress);
+        if (importResult && importResult.controllerAddress) {
+          // up_import succeeded! This is the controller address to use
+          controllerAddress = importResult.controllerAddress;
+          console.log('[Target] up_import returned controller:', controllerAddress);
           
-          if (result && result.controllerAddress) {
-            // UP import succeeded! The controller has been authorized
+          // In mini-app context, up_import might have already handled the authorization
+          // Check if this is a "direct" authorization (success case)
+          if (isInMiniAppContext) {
             setImportStatus('success');
             
-            // Create a success auth package to show what was done
+            // Create success auth package to show what was done
             const successPkg: AuthorizationPackage = {
               version: 1,
               profileAddress: profileAddress,
-              controllerAddress: result.controllerAddress,
+              controllerAddress: controllerAddress,
               requestedPermissions: '0x0', // Not used for success display
               network: network as 'mainnet' | 'testnet',
               timestamp: Date.now(),
@@ -108,22 +117,47 @@ export default function TargetPage() {
             };
             setAuthPackage(successPkg);
             setStep(2);
+            setIsGenerating(false);
             return;
           }
-        } catch (importErr) {
-          console.log('[Target] UP import not available or failed, falling back to QR code:', importErr);
         }
-        
-        // UP import didn't work, fall back to QR code
-        setImportStatus('failed');
+      } catch (importErr) {
+        console.log('[Target] up_import failed or not available:', importErr);
       }
 
-      // Build auth package for QR code flow
-      // The controller address is the connected wallet's address
+      // Step 2: If up_import didn't return a controller, check if connected address is an EOA
+      if (!controllerAddress) {
+        console.log('[Target] up_import did not return controller, checking connected address...');
+        
+        // Verify the connected address is an EOA (not a contract/UP)
+        const isContract = await isContractAddress(address);
+        
+        if (isContract) {
+          // Connected address is a contract (likely a Universal Profile)
+          // Cannot use this as a controller - need up_import
+          setError(
+            'The connected address is a smart contract (Universal Profile). ' +
+            'To import a profile, your wallet needs to support the up_import method ' +
+            'to provide a controller address. Please use a compatible wallet or ' +
+            'connect with an EOA (externally owned account) instead.'
+          );
+          setImportStatus('failed');
+          setIsGenerating(false);
+          return;
+        }
+        
+        // Connected address is an EOA - can use it as controller
+        controllerAddress = address;
+        console.log('[Target] Using connected EOA as controller:', controllerAddress);
+      }
+
+      setImportStatus('failed'); // Not a direct success, need QR code flow
+
+      // Build auth package with the CORRECT controller address
       const pkg: AuthorizationPackage = {
         version: 1,
         profileAddress: profileAddress,
-        controllerAddress: address,
+        controllerAddress: controllerAddress, // This is now guaranteed to be correct!
         requestedPermissions: '0x0', // Authorizer will select permissions
         network: network as 'mainnet' | 'testnet',
         timestamp: Date.now(),
@@ -135,7 +169,7 @@ export default function TargetPage() {
 
       setAuthPackage(pkg);
       
-      // Generate link
+      // Generate link with correct controller address
       const link = generateAuthorizationLink(pkg);
       setAuthLink(link);
       
@@ -273,7 +307,7 @@ export default function TargetPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
-                      Requesting Authorization...
+                      Getting Controller Address...
                     </>
                   ) : isGenerating ? (
                     'Generating...'
@@ -298,7 +332,7 @@ export default function TargetPage() {
 
       {step === 2 && authPackage && (
         <div className="space-y-6">
-          {/* Show success message if UP import worked */}
+          {/* Show success message if UP import worked (direct authorization) */}
           {importStatus === 'success' ? (
             <Card>
               <CardHeader className="text-center">
@@ -333,12 +367,12 @@ export default function TargetPage() {
             </Card>
           ) : (
             <>
-              {/* Show notice if UP import was tried but failed */}
-              {importStatus === 'failed' && isInMiniAppContext && (
+              {/* Show notice about controller source */}
+              {walletSource !== 'up-provider' && (
                 <Alert>
                   <AlertDescription>
-                    <strong>Note:</strong> Direct authorization through Universal Everything isn&apos;t available. 
-                    Please use the QR code or link below to authorize on another device.
+                    <strong>Controller Address:</strong> Using your connected EOA wallet address as the controller. 
+                    The profile owner will authorize this address with selected permissions.
                   </AlertDescription>
                 </Alert>
               )}

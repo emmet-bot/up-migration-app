@@ -46,8 +46,11 @@ interface WalletContextValue extends WalletContextState {
     value?: bigint;
   }) => Promise<`0x${string}` | null>;
   
-  // UP Provider specific
+  // UP Provider specific - now works on any provider
   requestUpImport: (profileAddress: `0x${string}`) => Promise<{ controllerAddress: `0x${string}` } | null>;
+  
+  // Check if an address is a contract
+  isContractAddress: (address: `0x${string}`) => Promise<boolean>;
   
   // WalletConnect control
   openWalletConnect: () => Promise<void>;
@@ -378,40 +381,90 @@ export function WalletContextProvider({ children }: WalletContextProviderProps) 
   }, [openAppKit]);
 
   /**
-   * Request UP import - asks parent app (Universal Everything) to authorize a controller
-   * for the specified Universal Profile. This is only available in mini-app context.
+   * Check if an address is a contract (vs EOA)
+   * Returns true if the address has code deployed (is a contract)
+   */
+  const isContractAddress = useCallback(async (addr: `0x${string}`): Promise<boolean> => {
+    if (!publicClient) {
+      // Create a client if we don't have one
+      const chain = chainId === 42 ? lukso : luksoTestnet;
+      const client = createPublicClient({ chain, transport: http() });
+      const code = await client.getCode({ address: addr });
+      return code !== undefined && code !== '0x';
+    }
+    
+    try {
+      const code = await publicClient.getCode({ address: addr });
+      return code !== undefined && code !== '0x';
+    } catch (err) {
+      console.error('[WalletContext] Error checking if address is contract:', err);
+      return false;
+    }
+  }, [publicClient, chainId]);
+
+  /**
+   * Request UP import - asks the wallet/provider to provide a controller address
+   * for the specified Universal Profile.
+   * 
+   * This works on any provider that supports the up_import method:
+   * - UP Provider (mini-app context): Parent app handles authorization
+   * - Injected wallet: If the wallet supports up_import
+   * - WalletConnect: If the connected wallet supports up_import
    */
   const requestUpImport = useCallback(async (
     profileAddress: `0x${string}`
   ): Promise<{ controllerAddress: `0x${string}` } | null> => {
-    if (!upProvider || !inMiniAppContext) {
-      console.log('[WalletContext] up_import not available - not in mini-app context');
-      return null;
-    }
-
-    try {
-      // Call up_import to request the parent app to authorize a controller
-      // The parent app will handle the authorization flow
-      const result = await upProvider.request({
-        method: 'up_import',
-        params: [profileAddress],
-      });
-      
-      // The result should contain the controller address that was authorized
-      if (result && typeof result === 'string') {
-        return { controllerAddress: result as `0x${string}` };
-      } else if (result && typeof result === 'object' && 'controllerAddress' in (result as object)) {
-        return result as { controllerAddress: `0x${string}` };
+    // Try UP Provider first (highest priority in mini-app context)
+    if (upProvider) {
+      try {
+        console.log('[WalletContext] Trying up_import via UP Provider...');
+        const result = await upProvider.request({
+          method: 'up_import',
+          params: [profileAddress],
+        });
+        
+        // The result should contain the controller address that was authorized
+        if (result && typeof result === 'string') {
+          console.log('[WalletContext] up_import succeeded via UP Provider:', result);
+          return { controllerAddress: result as `0x${string}` };
+        } else if (result && typeof result === 'object' && 'controllerAddress' in (result as object)) {
+          console.log('[WalletContext] up_import succeeded via UP Provider (object):', result);
+          return result as { controllerAddress: `0x${string}` };
+        }
+        
+        console.log('[WalletContext] up_import returned unexpected result:', result);
+      } catch (err) {
+        console.log('[WalletContext] up_import not available via UP Provider:', err);
       }
-      
-      console.log('[WalletContext] up_import returned unexpected result:', result);
-      return null;
-    } catch (err) {
-      console.error('[WalletContext] up_import failed:', err);
-      // Method might not be supported, return null to fall back to QR flow
-      return null;
     }
-  }, [upProvider, inMiniAppContext]);
+    
+    // Try injected provider
+    const injected = (window as { lukso?: EIP1193Provider }).lukso || 
+                     (window as { ethereum?: EIP1193Provider }).ethereum;
+    
+    if (injected) {
+      try {
+        console.log('[WalletContext] Trying up_import via injected provider...');
+        const result = await injected.request({
+          method: 'up_import',
+          params: [profileAddress],
+        });
+        
+        if (result && typeof result === 'string') {
+          console.log('[WalletContext] up_import succeeded via injected provider:', result);
+          return { controllerAddress: result as `0x${string}` };
+        } else if (result && typeof result === 'object' && 'controllerAddress' in (result as object)) {
+          console.log('[WalletContext] up_import succeeded via injected provider (object):', result);
+          return result as { controllerAddress: `0x${string}` };
+        }
+      } catch (err) {
+        console.log('[WalletContext] up_import not available via injected provider:', err);
+      }
+    }
+    
+    console.log('[WalletContext] up_import not available on any provider');
+    return null;
+  }, [upProvider]);
 
   const value: WalletContextValue = {
     isConnected,
@@ -430,6 +483,7 @@ export function WalletContextProvider({ children }: WalletContextProviderProps) 
     disconnect,
     sendTransaction,
     requestUpImport,
+    isContractAddress,
     openWalletConnect,
     shouldShowWalletConnect,
   };

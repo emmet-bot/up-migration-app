@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { PermissionSelector } from '@/components/migration/PermissionSelector';
 import { MigrationStatus } from '@/components/migration/MigrationStatus';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { AddressWithIdenticon } from '@/components/shared/ProfileDisplay';
 import { extractAuthPackageFromURL } from '@/lib/auth-package/decode';
 import { shortenAddress } from '@/lib/utils/format';
 import { lukso, luksoTestnet } from '@/lib/utils/chains';
@@ -347,16 +348,12 @@ function AuthorizeContent() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Profile</span>
-                  <span className="font-mono text-sm">
-                    {shortenAddress(authPackage.profileAddress)}
-                  </span>
+                  <AddressWithIdenticon address={authPackage.profileAddress} />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">New Controller</span>
-                  <span className="font-mono text-sm">
-                    {shortenAddress(authPackage.controllerAddress)}
-                  </span>
+                  <AddressWithIdenticon address={authPackage.controllerAddress} />
                 </div>
 
                 <div className="flex items-center justify-between">

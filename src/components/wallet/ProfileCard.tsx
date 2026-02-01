@@ -2,7 +2,8 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { shortenAddress } from '@/lib/utils/format';
+import { compactAddress } from '@/lib/utils/format';
+import { generateIdenticon } from '@/lib/utils/identicon';
 import { getBestProfileImage } from '@/lib/indexer/queries';
 import type { ProfileSearchResult } from '@/types/profile';
 
@@ -14,18 +15,13 @@ interface ProfileCardProps {
 
 export function ProfileCard({ profile, selected, onClick }: ProfileCardProps) {
   const avatarUrl = getBestProfileImage(profile.profileImages, 'medium');
+  const identicon = generateIdenticon(profile.id);
   const displayName = profile.name || profile.fullName || 'Unnamed Profile';
-  const initials = displayName
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
 
   return (
     <Card
       className={`
-        transition-all cursor-pointer
+        transition-all
         ${selected ? 'ring-2 ring-primary border-primary' : 'hover:border-primary/50'}
         ${onClick ? 'cursor-pointer' : ''}
       `}
@@ -34,14 +30,29 @@ export function ProfileCard({ profile, selected, onClick }: ProfileCardProps) {
       <CardContent className="flex items-center gap-4 p-4">
         <Avatar className="h-12 w-12">
           <AvatarImage src={avatarUrl || undefined} alt={displayName} />
-          <AvatarFallback>{initials}</AvatarFallback>
+          {/* Use identicon as fallback instead of text initials */}
+          <AvatarFallback className="p-0">
+            {identicon ? (
+              <img
+                src={identicon}
+                alt={displayName}
+                className="w-full h-full rounded-full"
+              />
+            ) : (
+              <span>
+                {displayName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
+              </span>
+            )}
+          </AvatarFallback>
         </Avatar>
 
         <div className="flex-1 min-w-0">
-          <p className="font-medium truncate">{displayName}</p>
-          <p className="text-sm text-muted-foreground font-mono">
-            {shortenAddress(profile.id)}
-          </p>
+          <div className="flex items-center gap-2">
+            <span className="font-medium truncate">{displayName}</span>
+            <span className="text-sm text-muted-foreground font-mono flex-shrink-0">
+              {compactAddress(profile.id)}
+            </span>
+          </div>
         </div>
 
         {selected && (

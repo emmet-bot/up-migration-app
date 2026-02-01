@@ -10,6 +10,7 @@ interface UseProfileSearchReturn {
   isLoading: boolean;
   error: string | null;
   search: (term: string) => void;
+  reset: () => void;
 }
 
 export function useProfileSearch(
@@ -51,11 +52,18 @@ export function useProfileSearch(
     setSearchTerm(term);
   }, []);
 
+  const reset = useCallback(() => {
+    setSearchTerm('');
+    setData(null);
+    setError(null);
+  }, []);
+
   return {
     data,
     isLoading,
     error,
     search,
+    reset,
   };
 }
 
@@ -98,5 +106,6 @@ export function useProfileSearchDirect(
     isLoading,
     error,
     search: () => {}, // No-op for direct search
+    reset: () => {}, // No-op for direct search
   };
 }

@@ -1,10 +1,21 @@
 /**
- * Shorten an address for display
+ * Shorten an address for display (shows both start and end)
+ * e.g., "0xAbCd...1234"
  */
 export function shortenAddress(address: string, chars = 4): string {
   if (!address) return '';
   if (address.length <= chars * 2 + 2) return address;
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
+}
+
+/**
+ * Compact address format for profile displays (shows only first chars)
+ * e.g., "0xAb..." - suitable for showing alongside username
+ */
+export function compactAddress(address: string, chars = 4): string {
+  if (!address) return '';
+  if (address.length <= chars + 2 + 3) return address; // 0x + chars + ...
+  return `${address.slice(0, chars + 2)}...`;
 }
 
 /**

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { shortenAddress } from '@/lib/utils/format';
+import { AddressWithIdenticon } from '@/components/shared/ProfileDisplay';
 import { getActivePermissions, PERMISSION_LABELS, PERMISSIONS } from '@/constants/permissions';
 import type { AuthorizationPackage } from '@/types/auth-package';
 
@@ -81,16 +81,12 @@ export function AuthorizationReview({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Profile</span>
-            <span className="font-mono text-sm">
-              {shortenAddress(authPackage.profileAddress)}
-            </span>
+            <AddressWithIdenticon address={authPackage.profileAddress} />
           </div>
 
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">New Controller</span>
-            <span className="font-mono text-sm">
-              {shortenAddress(authPackage.controllerAddress)}
-            </span>
+            <AddressWithIdenticon address={authPackage.controllerAddress} />
           </div>
 
           <div className="flex items-center justify-between">

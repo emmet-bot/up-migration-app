@@ -20,12 +20,23 @@ export function ProfileSearch({
   placeholder = 'Search by name or address...',
 }: ProfileSearchProps) {
   const [query, setQuery] = useState('');
-  const { data: profiles, isLoading, error, search } = useProfileSearch(network);
+  const [isOpen, setIsOpen] = useState(false);
+  const { data: profiles, isLoading, error, search, reset } = useProfileSearch(network);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setQuery(value);
+    setIsOpen(true);
     search(value);
+  };
+
+  const handleProfileSelect = (profile: ProfileSearchResult) => {
+    // Close dropdown and clear search
+    setIsOpen(false);
+    setQuery('');
+    reset();
+    // Notify parent
+    onSelect(profile);
   };
 
   return (
@@ -36,6 +47,7 @@ export function ProfileSearch({
           placeholder={placeholder}
           value={query}
           onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
           className="pr-10"
         />
         {isLoading && (
@@ -51,19 +63,19 @@ export function ProfileSearch({
         </div>
       )}
 
-      {profiles && profiles.length > 0 && (
-        <div className="border rounded-lg divide-y">
+      {isOpen && profiles && profiles.length > 0 && (
+        <div className="border rounded-lg divide-y max-h-64 overflow-y-auto">
           {profiles.map((profile) => (
             <ProfileResult
               key={profile.id}
               profile={profile}
-              onClick={() => onSelect(profile)}
+              onClick={() => handleProfileSelect(profile)}
             />
           ))}
         </div>
       )}
 
-      {profiles && profiles.length === 0 && query.trim() && (
+      {isOpen && profiles && profiles.length === 0 && query.trim() && (
         <div className="text-center text-muted-foreground py-8">
           No profiles found matching &ldquo;{query}&rdquo;
         </div>

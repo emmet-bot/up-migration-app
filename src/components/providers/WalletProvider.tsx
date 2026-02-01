@@ -5,6 +5,7 @@ import { createAppKit } from '@reown/appkit/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
 import { wagmiAdapter, projectId, networks, luksoMainnet } from '@/lib/wallet/config';
+import { WalletContextProvider } from '@/contexts/WalletContext';
 
 // Setup query client
 const queryClient = new QueryClient();
@@ -80,7 +81,9 @@ export function WalletProvider({ children }: WalletProviderProps) {
   return (
     <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        {children}
+        <WalletContextProvider>
+          {children}
+        </WalletContextProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

@@ -2,9 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAccount, useChainId, useDisconnect, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
-import { useAppKit } from '@reown/appkit/react';
-import { createPublicClient, http, encodeFunctionData } from 'viem';
+import { createPublicClient, http } from 'viem';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -14,10 +12,12 @@ import { PermissionSelector } from '@/components/migration/PermissionSelector';
 import { MigrationStatus } from '@/components/migration/MigrationStatus';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { AddressWithIdenticon } from '@/components/shared/ProfileDisplay';
+import { WalletConnector, WalletConnectorCompact } from '@/components/wallet/WalletConnector';
+import { useWallet } from '@/contexts/WalletContext';
 import { extractAuthPackageFromURL } from '@/lib/auth-package/decode';
 import { shortenAddress } from '@/lib/utils/format';
 import { lukso, luksoTestnet } from '@/lib/utils/chains';
-import { getEndpoints, getNetworkFromChainId } from '@/constants/endpoints';
+import { getEndpoints } from '@/constants/endpoints';
 import { PERMISSION_PRESETS, getActivePermissions, PERMISSION_LABELS, PERMISSIONS } from '@/constants/permissions';
 import { buildSetDataTransaction } from '@/lib/lsp6/transaction';
 import type { AuthorizationPackage } from '@/types/auth-package';
@@ -25,13 +25,16 @@ import type { AuthorizationPackage } from '@/types/auth-package';
 function AuthorizeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { open } = useAppKit();
-  const { address, isConnected, isConnecting } = useAccount();
-  const chainId = useChainId();
-  const { disconnect } = useDisconnect();
-  const { sendTransactionAsync, isPending: isSending } = useSendTransaction();
-
-  const network = chainId ? getNetworkFromChainId(chainId) : null;
+  const {
+    address,
+    isConnected,
+    isConnecting,
+    network,
+    error: walletError,
+    walletSource,
+    isInMiniAppContext,
+    sendTransaction,
+  } = useWallet();
 
   const [authPackage, setAuthPackage] = useState<AuthorizationPackage | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -39,18 +42,7 @@ function AuthorizeContent() {
   const [status, setStatus] = useState<'idle' | 'authorizing' | 'confirming' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
-
-  // Wait for transaction
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash: txHash || undefined,
-  });
-
-  // Update status when transaction confirms
-  useEffect(() => {
-    if (isSuccess && txHash) {
-      setStatus('success');
-    }
-  }, [isSuccess, txHash]);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   // Parse auth package from URL (only runs once on mount)
   useEffect(() => {
@@ -76,13 +68,33 @@ function AuthorizeContent() {
     }
   }, [searchParams]);
 
-  const handleConnect = async () => {
-    try {
-      await open();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to connect wallet');
-    }
-  };
+  // Watch for transaction confirmation
+  useEffect(() => {
+    if (!txHash || status !== 'confirming') return;
+
+    const checkTx = async () => {
+      try {
+        const chain = authPackage?.network === 'mainnet' ? lukso : luksoTestnet;
+        const client = createPublicClient({ chain, transport: http() });
+        
+        const receipt = await client.waitForTransactionReceipt({ hash: txHash });
+        if (receipt.status === 'success') {
+          setStatus('success');
+        } else {
+          setStatus('error');
+          setError('Transaction failed');
+        }
+      } catch (err) {
+        console.error('Error checking transaction:', err);
+        // Don't set error - might just be waiting
+      }
+    };
+
+    const interval = setInterval(checkTx, 3000);
+    checkTx(); // Check immediately
+
+    return () => clearInterval(interval);
+  }, [txHash, status, authPackage?.network]);
 
   const handleAuthorize = async () => {
     if (!authPackage || !address) {
@@ -109,14 +121,19 @@ function AuthorizeContent() {
         permissions
       );
 
-      // Send the transaction
-      const hash = await sendTransactionAsync({
+      // Send the transaction using our unified wallet context
+      const hash = await sendTransaction({
         to: authPackage.profileAddress,
         data: txData,
       });
 
-      setTxHash(hash);
-      setStatus('confirming');
+      if (hash) {
+        setTxHash(hash);
+        setStatus('confirming');
+      } else {
+        setStatus('error');
+        setError('Transaction was rejected or failed');
+      }
     } catch (err) {
       console.error('Error authorizing:', err);
       setError(err instanceof Error ? err.message : 'Failed to authorize controller');
@@ -267,15 +284,7 @@ function AuthorizeContent() {
           Cancel
         </Button>
         
-        {isConnected ? (
-          <Button variant="outline" size="sm" onClick={() => disconnect()}>
-            {shortenAddress(address || '')}
-          </Button>
-        ) : (
-          <Button variant="outline" size="sm" onClick={handleConnect} disabled={isConnecting}>
-            {isConnecting ? 'Connecting...' : 'Connect'}
-          </Button>
-        )}
+        <WalletConnectorCompact />
       </div>
 
       {/* Not Connected */}
@@ -293,15 +302,18 @@ function AuthorizeContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
             </div>
-            <Button onClick={handleConnect} size="lg" disabled={isConnecting}>
-              {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-            </Button>
+            <WalletConnector size="lg" />
             {/* Error near button */}
-            {error && (
+            {(error || walletError) && (
               <Alert variant="destructive" className="max-w-sm">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{error || walletError}</AlertDescription>
               </Alert>
             )}
+            <p className="text-sm text-muted-foreground text-center max-w-sm">
+              {isInMiniAppContext 
+                ? 'Connect through Universal Everything to authorize'
+                : 'Use the UP Browser Extension or WalletConnect'}
+            </p>
           </CardContent>
         </Card>
       )}
@@ -341,6 +353,16 @@ function AuthorizeContent() {
                   <p className="text-sm text-muted-foreground">wants access to your profile</p>
                 </div>
               </div>
+
+              {/* Connection info badge */}
+              {walletSource && (
+                <div className="flex justify-center">
+                  <Badge variant="outline" className="text-xs">
+                    Connected via {walletSource === 'up-provider' ? 'UP Provider' : 
+                                   walletSource === 'injected' ? 'Browser Extension' : 'WalletConnect'}
+                  </Badge>
+                </div>
+              )}
 
               <Separator />
 
@@ -415,17 +437,17 @@ function AuthorizeContent() {
                 <Button
                   variant="outline"
                   onClick={handleCancel}
-                  disabled={isSending}
+                  disabled={status === 'authorizing'}
                   className="flex-1"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleAuthorize}
-                  disabled={isSending || activePermissions.length === 0}
+                  disabled={status === 'authorizing' || activePermissions.length === 0}
                   className="flex-1"
                 >
-                  {isSending ? 'Authorizing...' : 'Authorize'}
+                  {status === 'authorizing' ? 'Authorizing...' : 'Authorize'}
                 </Button>
               </div>
               

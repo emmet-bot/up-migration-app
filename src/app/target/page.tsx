@@ -1,9 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAccount, useChainId, useConnect, useDisconnect } from 'wagmi';
-import { useAppKit } from '@reown/appkit/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -11,7 +9,8 @@ import { StepIndicator } from '@/components/shared/StepIndicator';
 import { ProfileCard } from '@/components/wallet/ProfileCard';
 import { ProfileSearch } from '@/components/search/ProfileSearch';
 import { QRGenerator } from '@/components/migration/QRGenerator';
-import { getNetworkFromChainId } from '@/constants/endpoints';
+import { WalletConnector, WalletConnectorCompact } from '@/components/wallet/WalletConnector';
+import { useWallet } from '@/contexts/WalletContext';
 import { generateAuthorizationLink } from '@/lib/auth-package/encode';
 import type { ProfileSearchResult } from '@/types/profile';
 import type { AuthorizationPackage } from '@/types/auth-package';
@@ -24,28 +23,30 @@ const STEPS = [
 
 export default function TargetPage() {
   const router = useRouter();
-  const { open } = useAppKit();
-  const { address, isConnected, isConnecting } = useAccount();
-  const chainId = useChainId();
-  const { disconnect } = useDisconnect();
+  const {
+    address,
+    isConnected,
+    isConnecting,
+    network,
+    error: walletError,
+    walletSource,
+    isInMiniAppContext,
+    contextAddress,
+  } = useWallet();
 
-  const network = chainId ? getNetworkFromChainId(chainId) : null;
-
-  const [step, setStep] = useState(isConnected ? 1 : 0);
+  const [step, setStep] = useState(0);
   const [selectedProfile, setSelectedProfile] = useState<ProfileSearchResult | null>(null);
   const [authPackage, setAuthPackage] = useState<AuthorizationPackage | null>(null);
   const [authLink, setAuthLink] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Step 1: Connect wallet
-  const handleConnect = async () => {
-    try {
-      await open();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to connect wallet');
+  // Auto-advance to step 1 when connected
+  useEffect(() => {
+    if (isConnected && step === 0) {
+      setStep(1);
     }
-  };
+  }, [isConnected, step]);
 
   // Handle connection state changes
   const handleContinueAfterConnect = () => {
@@ -125,15 +126,7 @@ export default function TargetPage() {
           Back
         </Button>
         
-        {isConnected ? (
-          <Button variant="outline" size="sm" onClick={() => disconnect()}>
-            {shortenAddress(address || '')}
-          </Button>
-        ) : (
-          <Button variant="outline" size="sm" onClick={handleConnect} disabled={isConnecting}>
-            {isConnecting ? 'Connecting...' : 'Connect'}
-          </Button>
-        )}
+        <WalletConnectorCompact />
       </div>
 
       {/* Step Indicator */}
@@ -159,27 +152,37 @@ export default function TargetPage() {
               <div className="text-center space-y-4">
                 <p className="text-sm text-muted-foreground">
                   Connected as <span className="font-mono">{shortenAddress(address || '')}</span>
+                  {walletSource === 'up-provider' && (
+                    <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                      via UP Provider
+                    </span>
+                  )}
                 </p>
+                {contextAddress && (
+                  <p className="text-xs text-muted-foreground">
+                    Context: <span className="font-mono">{shortenAddress(contextAddress)}</span>
+                  </p>
+                )}
                 <Button onClick={handleContinueAfterConnect} size="lg">
                   Continue
                 </Button>
               </div>
             ) : (
               <>
-                <Button onClick={handleConnect} size="lg" disabled={isConnecting}>
-                  {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-                </Button>
+                <WalletConnector size="lg" />
                 {/* Error near button */}
-                {error && (
+                {(error || walletError) && (
                   <Alert variant="destructive" className="max-w-sm">
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription>{error || walletError}</AlertDescription>
                   </Alert>
                 )}
               </>
             )}
             
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Use WalletConnect to connect from any compatible wallet, including the UP Browser Extension
+              {isInMiniAppContext 
+                ? 'Connect through Universal Everything to use this app as a mini-app'
+                : 'Use the UP Browser Extension or WalletConnect to connect your wallet'}
             </p>
           </CardContent>
         </Card>

@@ -118,6 +118,26 @@ export async function getProfileByAddress(
 }
 
 /**
+ * Convert IPFS URI to HTTP gateway URL
+ */
+function ipfsToHttp(uri: string): string {
+  if (!uri) return uri;
+  
+  // Already an HTTP URL
+  if (uri.startsWith('http://') || uri.startsWith('https://')) {
+    return uri;
+  }
+  
+  // Convert ipfs:// URI to gateway URL
+  if (uri.startsWith('ipfs://')) {
+    const hash = uri.replace('ipfs://', '');
+    return `https://api.universalprofile.cloud/image/${hash}`;
+  }
+  
+  return uri;
+}
+
+/**
  * Get the best profile image URL
  */
 export function getBestProfileImage(
@@ -152,5 +172,11 @@ export function getBestProfileImage(
     }
   }
   
-  return best.url || best.src;
+  // Prefer src (HTTP URL) over url (IPFS URI)
+  // Convert IPFS URIs to HTTP gateway URLs as fallback
+  if (best.src) {
+    return ipfsToHttp(best.src);
+  }
+  
+  return ipfsToHttp(best.url);
 }

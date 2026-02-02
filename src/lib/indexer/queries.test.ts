@@ -13,77 +13,91 @@ describe('getBestProfileImage', () => {
 
   it('should return the only image when array has single item', () => {
     const images: ProfileImage[] = [
-      { width: 100, src: 'src1', url: 'url1', verified: true },
+      { width: 100, src: 'https://example.com/image.jpg', url: 'ipfs://Qm123', verified: true },
     ];
     
-    expect(getBestProfileImage(images)).toBe('url1');
+    // Should prefer src (HTTP URL) over url (IPFS URI)
+    expect(getBestProfileImage(images)).toBe('https://example.com/image.jpg');
   });
 
-  it('should prefer URL over src', () => {
+  it('should prefer src (HTTP) over url (IPFS)', () => {
     const images: ProfileImage[] = [
-      { width: 100, src: 'src1', url: 'url1', verified: true },
+      { width: 100, src: 'https://api.universalprofile.cloud/image/Qm123', url: 'ipfs://Qm123', verified: true },
     ];
     
-    expect(getBestProfileImage(images)).toBe('url1');
+    // Browsers can't load IPFS URIs directly, so prefer src
+    expect(getBestProfileImage(images)).toBe('https://api.universalprofile.cloud/image/Qm123');
   });
 
-  it('should fall back to src when url is empty', () => {
+  it('should fall back to url when src is empty', () => {
     const images: ProfileImage[] = [
-      { width: 100, src: 'src1', url: '', verified: true },
+      { width: 100, src: '', url: 'ipfs://Qm123', verified: true },
     ];
     
-    expect(getBestProfileImage(images)).toBe('src1');
+    // When src is empty, use url (converted to HTTP gateway)
+    expect(getBestProfileImage(images)).toBe('https://api.universalprofile.cloud/image/Qm123');
+  });
+
+  it('should convert IPFS URI to HTTP gateway URL when falling back', () => {
+    const images: ProfileImage[] = [
+      { width: 100, src: '', url: 'ipfs://QmabcdefghijklmnopqrstuvwxyzABCDEF', verified: true },
+    ];
+    
+    expect(getBestProfileImage(images)).toBe('https://api.universalprofile.cloud/image/QmabcdefghijklmnopqrstuvwxyzABCDEF');
   });
 
   it('should select image closest to small target (64px)', () => {
     const images: ProfileImage[] = [
-      { width: 32, src: 'small', url: 'small-url', verified: true },
-      { width: 64, src: 'medium', url: 'medium-url', verified: true },
-      { width: 256, src: 'large', url: 'large-url', verified: true },
+      { width: 32, src: 'https://example.com/small.jpg', url: 'ipfs://small', verified: true },
+      { width: 64, src: 'https://example.com/medium.jpg', url: 'ipfs://medium', verified: true },
+      { width: 256, src: 'https://example.com/large.jpg', url: 'ipfs://large', verified: true },
     ];
     
-    expect(getBestProfileImage(images, 'small')).toBe('medium-url');
+    // 64px is closest to 64px target
+    expect(getBestProfileImage(images, 'small')).toBe('https://example.com/medium.jpg');
   });
 
   it('should select image closest to medium target (200px)', () => {
     const images: ProfileImage[] = [
-      { width: 64, src: 'small', url: 'small-url', verified: true },
-      { width: 180, src: 'medium', url: 'medium-url', verified: true },
-      { width: 400, src: 'large', url: 'large-url', verified: true },
+      { width: 64, src: 'https://example.com/small.jpg', url: 'ipfs://small', verified: true },
+      { width: 180, src: 'https://example.com/medium.jpg', url: 'ipfs://medium', verified: true },
+      { width: 400, src: 'https://example.com/large.jpg', url: 'ipfs://large', verified: true },
     ];
     
-    expect(getBestProfileImage(images, 'medium')).toBe('medium-url');
+    // 180px is closest to 200px target
+    expect(getBestProfileImage(images, 'medium')).toBe('https://example.com/medium.jpg');
   });
 
   it('should select image closest to large target (400px)', () => {
     const images: ProfileImage[] = [
-      { width: 100, src: 'small', url: 'small-url', verified: true },
-      { width: 200, src: 'medium', url: 'medium-url', verified: true },
-      { width: 350, src: 'large', url: 'large-url', verified: true },
+      { width: 100, src: 'https://example.com/small.jpg', url: 'ipfs://small', verified: true },
+      { width: 200, src: 'https://example.com/medium.jpg', url: 'ipfs://medium', verified: true },
+      { width: 350, src: 'https://example.com/large.jpg', url: 'ipfs://large', verified: true },
     ];
     
-    expect(getBestProfileImage(images, 'large')).toBe('large-url');
+    // 350px is closest to 400px target
+    expect(getBestProfileImage(images, 'large')).toBe('https://example.com/large.jpg');
   });
 
   it('should default to medium size preference', () => {
     const images: ProfileImage[] = [
-      { width: 64, src: 'small', url: 'small-url', verified: true },
-      { width: 200, src: 'exact-medium', url: 'exact-medium-url', verified: true },
-      { width: 800, src: 'very-large', url: 'very-large-url', verified: true },
+      { width: 64, src: 'https://example.com/small.jpg', url: 'ipfs://small', verified: true },
+      { width: 200, src: 'https://example.com/exact-medium.jpg', url: 'ipfs://exact-medium', verified: true },
+      { width: 800, src: 'https://example.com/very-large.jpg', url: 'ipfs://very-large', verified: true },
     ];
     
     // Default is medium (200px target)
-    expect(getBestProfileImage(images)).toBe('exact-medium-url');
+    expect(getBestProfileImage(images)).toBe('https://example.com/exact-medium.jpg');
   });
 
   it('should handle unsorted image arrays', () => {
     const images: ProfileImage[] = [
-      { width: 500, src: 'large', url: 'large-url', verified: true },
-      { width: 50, src: 'small', url: 'small-url', verified: true },
-      { width: 200, src: 'medium', url: 'medium-url', verified: true },
+      { width: 500, src: 'https://example.com/large.jpg', url: 'ipfs://large', verified: true },
+      { width: 50, src: 'https://example.com/small.jpg', url: 'ipfs://small', verified: true },
+      { width: 200, src: 'https://example.com/medium.jpg', url: 'ipfs://medium', verified: true },
     ];
     
     // Should still find closest to 200px target
-    expect(getBestProfileImage(images, 'medium')).toBe('medium-url');
+    expect(getBestProfileImage(images, 'medium')).toBe('https://example.com/medium.jpg');
   });
 });

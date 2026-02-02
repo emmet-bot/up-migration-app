@@ -11,7 +11,14 @@ import type { UPClientProvider } from '@lukso/up-provider';
 // ============================================================================
 // DEBUG LOGGING UTILITIES
 // ============================================================================
+const APP_VERSION = 'v8';
 const DEBUG_PREFIX = '[WalletContext]';
+
+// Log version on module load
+if (typeof window !== 'undefined') {
+  console.log(`%c[UP Migration App] ${APP_VERSION} - Debug Logging Enabled`, 'color: #6366f1; font-weight: bold; font-size: 14px;');
+  console.log('%c[UP Migration App] Check console for detailed connection debugging', 'color: #6366f1;');
+}
 
 function debugLog(message: string, ...args: unknown[]) {
   console.log(`${DEBUG_PREFIX} ${message}`, ...args);

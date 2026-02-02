@@ -147,9 +147,21 @@ The `up_import` method is used to generate a new controller address in the targe
 ## Environment Variables
 
 ```env
+# Required for WalletConnect functionality
+# Get your project ID from https://cloud.reown.com/
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id_here
+
 # Optional: Override the base URL for authorization links
 NEXT_PUBLIC_APP_URL=https://your-domain.com
 ```
+
+### WalletConnect Setup
+
+1. Go to [Reown Cloud](https://cloud.reown.com/) (formerly WalletConnect Cloud)
+2. Create a new project
+3. Copy your Project ID
+4. Set it as `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` in your environment
+5. For GitHub Pages deployment, add `WALLETCONNECT_PROJECT_ID` to your repository secrets
 
 ## Deployment
 

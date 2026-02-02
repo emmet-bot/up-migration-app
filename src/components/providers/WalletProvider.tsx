@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { createAppKit } from '@reown/appkit/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
-import { wagmiAdapter, projectId, networks, luksoMainnet } from '@/lib/wallet/config';
+import { wagmiAdapter, projectId, networks, luksoMainnet, isWalletConnectConfigured } from '@/lib/wallet/config';
 import { WalletContextProvider } from '@/contexts/WalletContext';
 
 // Setup query client
@@ -24,6 +24,16 @@ const metadata = {
 // Initialize AppKit (only once)
 function initializeAppKit() {
   if (appKitInitialized || typeof window === 'undefined') return;
+  
+  // Skip AppKit initialization if no valid project ID
+  if (!isWalletConnectConfigured) {
+    console.warn(
+      '[WalletProvider] WalletConnect not configured. ' +
+      'Set NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID in your environment. ' +
+      'Get a project ID from https://cloud.reown.com/'
+    );
+    return;
+  }
   
   try {
     createAppKit({
@@ -56,6 +66,7 @@ function initializeAppKit() {
       ],
     });
     appKitInitialized = true;
+    console.log('[WalletProvider] AppKit initialized successfully');
   } catch (error) {
     console.error('Failed to initialize AppKit:', error);
   }

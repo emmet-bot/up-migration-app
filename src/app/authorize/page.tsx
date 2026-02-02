@@ -18,8 +18,8 @@ import { extractAuthPackageFromURL } from '@/lib/auth-package/decode';
 import { shortenAddress } from '@/lib/utils/format';
 import { lukso, luksoTestnet } from '@/lib/utils/chains';
 import { getEndpoints } from '@/constants/endpoints';
-import { PERMISSION_PRESETS, getActivePermissions, PERMISSION_LABELS, PERMISSIONS } from '@/constants/permissions';
-import { buildSetDataTransaction } from '@/lib/lsp6/transaction';
+import { PERMISSION_PRESETS, getActivePermissions, PERMISSION_LABELS, PERMISSIONS, hasPermission } from '@/constants/permissions';
+import { buildSetDataTransaction, getControllerPermissions } from '@/lib/lsp6/transaction';
 import type { AuthorizationPackage } from '@/types/auth-package';
 
 function AuthorizeContent() {
@@ -43,6 +43,8 @@ function AuthorizeContent() {
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [profileMatchError, setProfileMatchError] = useState<string | null>(null);
+  const [isValidatingController, setIsValidatingController] = useState(false);
 
   // Parse auth package from URL (only runs once on mount)
   useEffect(() => {
@@ -95,6 +97,50 @@ function AuthorizeContent() {
 
     return () => clearInterval(interval);
   }, [txHash, status, authPackage?.network]);
+
+  // Validate that connected wallet can authorize this profile
+  useEffect(() => {
+    if (!isConnected || !address || !authPackage) {
+      setProfileMatchError(null);
+      return;
+    }
+
+    const validateController = async () => {
+      setIsValidatingController(true);
+      setProfileMatchError(null);
+
+      try {
+        const chain = authPackage.network === 'mainnet' ? lukso : luksoTestnet;
+        const client = createPublicClient({ chain, transport: http() });
+
+        // Check if the connected address has controller permissions on the profile
+        const controllerPermissions = await getControllerPermissions(
+          client,
+          authPackage.profileAddress,
+          address
+        );
+
+        // Address must have either ADDCONTROLLER or EDITPERMISSIONS to authorize new controllers
+        const canAddController = controllerPermissions !== null && 
+          (hasPermission(controllerPermissions, PERMISSIONS.ADDCONTROLLER) || 
+           hasPermission(controllerPermissions, PERMISSIONS.EDITPERMISSIONS));
+
+        if (!canAddController) {
+          setProfileMatchError(
+            `Connected wallet ${shortenAddress(address)} is not authorized to manage controllers for this profile. ` +
+            `Please connect a wallet that has controller permissions for ${shortenAddress(authPackage.profileAddress)}.`
+          );
+        }
+      } catch (err) {
+        console.error('Error validating controller:', err);
+        setProfileMatchError('Failed to validate controller permissions. Please try again.');
+      } finally {
+        setIsValidatingController(false);
+      }
+    };
+
+    validateController();
+  }, [isConnected, address, authPackage]);
 
   const handleAuthorize = async () => {
     if (!authPackage || !address) {
@@ -350,7 +396,6 @@ function AuthorizeContent() {
                 </div>
                 <div>
                   <p className="font-semibold">{authPackage.targetApp.name}</p>
-                  <p className="text-sm text-muted-foreground">wants access to your profile</p>
                 </div>
               </div>
 
@@ -443,6 +488,13 @@ function AuthorizeContent() {
             </CardContent>
 
             <CardFooter className="flex flex-col gap-3">
+              {/* Profile matching error */}
+              {profileMatchError && (
+                <Alert variant="destructive" className="w-full">
+                  <AlertDescription>{profileMatchError}</AlertDescription>
+                </Alert>
+              )}
+
               <div className="flex gap-3 w-full">
                 <Button
                   variant="outline"
@@ -454,10 +506,10 @@ function AuthorizeContent() {
                 </Button>
                 <Button
                   onClick={handleAuthorize}
-                  disabled={status === 'authorizing' || activePermissions.length === 0}
+                  disabled={status === 'authorizing' || activePermissions.length === 0 || !!profileMatchError || isValidatingController}
                   className="flex-1"
                 >
-                  {status === 'authorizing' ? 'Authorizing...' : 'Authorize'}
+                  {isValidatingController ? 'Validating...' : status === 'authorizing' ? 'Authorizing...' : 'Authorize'}
                 </Button>
               </div>
               

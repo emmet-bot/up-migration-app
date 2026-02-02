@@ -79,9 +79,9 @@ describe('Permissions', () => {
 
   describe('PERMISSION_PRESETS', () => {
     it('should have valid preset combinations', () => {
+      expect(PERMISSION_PRESETS.ADMIN_CONTROL).toBeGreaterThan(0n);
       expect(PERMISSION_PRESETS.FULL_CONTROL).toBeGreaterThan(0n);
       expect(PERMISSION_PRESETS.STANDARD_WALLET).toBeGreaterThan(0n);
-      expect(PERMISSION_PRESETS.READ_ONLY).toBe(PERMISSIONS.STATICCALL);
     });
 
     it('FULL_CONTROL should include common permissions', () => {
@@ -89,6 +89,25 @@ describe('Permissions', () => {
       expect(hasPermission(fc, PERMISSIONS.SUPER_CALL)).toBe(true);
       expect(hasPermission(fc, PERMISSIONS.SIGN)).toBe(true);
       expect(hasPermission(fc, PERMISSIONS.SUPER_SETDATA)).toBe(true);
+    });
+
+    it('All presets should include EXECUTE_RELAY_CALL', () => {
+      expect(hasPermission(PERMISSION_PRESETS.ADMIN_CONTROL, PERMISSIONS.EXECUTE_RELAY_CALL)).toBe(true);
+      expect(hasPermission(PERMISSION_PRESETS.FULL_CONTROL, PERMISSIONS.EXECUTE_RELAY_CALL)).toBe(true);
+      expect(hasPermission(PERMISSION_PRESETS.STANDARD_WALLET, PERMISSIONS.EXECUTE_RELAY_CALL)).toBe(true);
+    });
+
+    it('ADMIN_CONTROL should NOT include DELEGATECALL permissions', () => {
+      const admin = PERMISSION_PRESETS.ADMIN_CONTROL;
+      expect(hasPermission(admin, PERMISSIONS.DELEGATECALL)).toBe(false);
+      expect(hasPermission(admin, PERMISSIONS.SUPER_DELEGATECALL)).toBe(false);
+    });
+
+    it('ADMIN_CONTROL should include controller management permissions', () => {
+      const admin = PERMISSION_PRESETS.ADMIN_CONTROL;
+      expect(hasPermission(admin, PERMISSIONS.ADDCONTROLLER)).toBe(true);
+      expect(hasPermission(admin, PERMISSIONS.EDITPERMISSIONS)).toBe(true);
+      expect(hasPermission(admin, PERMISSIONS.CHANGEOWNER)).toBe(true);
     });
   });
 });

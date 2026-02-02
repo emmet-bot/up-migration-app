@@ -11,7 +11,7 @@ import type { UPClientProvider } from '@lukso/up-provider';
 // ============================================================================
 // DEBUG LOGGING UTILITIES
 // ============================================================================
-const APP_VERSION = 'v8';
+const APP_VERSION = 'v9';
 const DEBUG_PREFIX = '[WalletContext]';
 
 // Log version on module load
@@ -451,12 +451,54 @@ export function WalletContextProvider({ children }: WalletContextProviderProps) 
         debugSuccess('=== CONNECT COMPLETED SUCCESSFULLY ===');
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to connect';
+        const errorCode = (err as { code?: number })?.code;
         const errorDetails = {
           message: errorMessage,
           name: err instanceof Error ? err.name : 'Unknown',
-          code: (err as { code?: number })?.code,
+          code: errorCode,
           fullError: err,
         };
+        
+        // Error code -32001: Extension is connected but no Universal Profile is attached yet
+        // This is a valid state for first-time users who need to search for/select a profile
+        if (errorCode === -32001) {
+          debugLog('connect: Error -32001 detected - Extension connected, no profile attached yet');
+          debugSuccess('connect: Treating as successful connection for first-time user flow');
+          
+          // Get chain ID since extension is working
+          try {
+            const chainIdHex = await injected.request({ method: 'eth_chainId' }) as string;
+            const chainIdNum = parseInt(chainIdHex, 16);
+            debugLog('connect: Chain ID from extension:', chainIdNum);
+            
+            const chainName = chainIdNum === 42 ? 'LUKSO mainnet' : 'LUKSO testnet';
+            debugLog('connect: Creating public client for', chainName);
+            const chain = chainIdNum === 42 ? lukso : luksoTestnet;
+            setPublicClient(createPublicClient({ chain, transport: http() }));
+            
+            // Mark provider as ready - user can proceed to search for a profile
+            setProviderReady({
+              isReady: true,
+              chainId: chainIdNum,
+            });
+            setWalletSource('injected');
+            
+            // No profile address, but provider is ready
+            setUpState({
+              isConnected: false,
+              isConnecting: false,
+              address: null,
+              contextAddress: null,
+              chainId: chainIdNum,
+            });
+            
+            debugSuccess('=== CONNECT COMPLETED (FIRST-TIME USER) ===');
+            return;
+          } catch (chainErr) {
+            debugError('connect: Failed to get chainId after -32001:', chainErr);
+          }
+        }
+        
         debugError('connect: eth_requestAccounts failed:', errorDetails);
         setError(errorMessage);
         setProviderReady({ isReady: false, chainId: null });

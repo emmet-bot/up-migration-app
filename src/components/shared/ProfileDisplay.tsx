@@ -1,8 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatUsername } from '@/lib/utils/format';
 import { generateIdenticon } from '@/lib/utils/identicon';
+import { useImagePreload } from '@/hooks/useProfileData';
 
 interface ProfileDisplayProps {
   address: string;
@@ -10,6 +13,8 @@ interface ProfileDisplayProps {
   avatarUrl?: string;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  /** Show skeleton while loading */
+  showLoadingState?: boolean;
 }
 
 const sizeClasses = {
@@ -20,7 +25,7 @@ const sizeClasses = {
 
 /**
  * Consistent profile display component showing:
- * - Profile picture (with identicon fallback)
+ * - Profile picture (with loading state and identicon fallback)
  * - Username in @name#abcd format
  */
 export function ProfileDisplay({
@@ -29,28 +34,46 @@ export function ProfileDisplay({
   avatarUrl,
   size = 'md',
   className = '',
+  showLoadingState = true,
 }: ProfileDisplayProps) {
   const identicon = generateIdenticon(address);
   const formattedName = formatUsername(name, address);
+  const { loaded: imageLoaded, error: imageError } = useImagePreload(avatarUrl);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  const showAvatar = avatarUrl && imageLoaded && !imageFailed && !imageError;
+  const showSkeleton = showLoadingState && avatarUrl && !imageLoaded && !imageError && !imageFailed;
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <Avatar className={sizeClasses[size]}>
-        <AvatarImage src={avatarUrl || undefined} alt={formattedName} />
-        <AvatarFallback className="p-0">
-          {identicon ? (
-            <img
-              src={identicon}
-              alt={formattedName}
-              className="w-full h-full rounded-full"
-            />
-          ) : (
-            <span className="text-xs">
-              {(name || 'UN').slice(0, 2).toUpperCase()}
-            </span>
-          )}
-        </AvatarFallback>
-      </Avatar>
+      <div className={`relative flex-shrink-0 ${sizeClasses[size]}`}>
+        {showSkeleton ? (
+          <Skeleton className={`rounded-full ${sizeClasses[size]}`} />
+        ) : (
+          <Avatar className={sizeClasses[size]}>
+            {showAvatar ? (
+              <AvatarImage 
+                src={avatarUrl} 
+                alt={formattedName}
+                onError={() => setImageFailed(true)}
+              />
+            ) : null}
+            <AvatarFallback className="p-0">
+              {identicon ? (
+                <img
+                  src={identicon}
+                  alt={formattedName}
+                  className="w-full h-full rounded-full"
+                />
+              ) : (
+                <span className="text-xs">
+                  {(name || 'UN').slice(0, 2).toUpperCase()}
+                </span>
+              )}
+            </AvatarFallback>
+          </Avatar>
+        )}
+      </div>
 
       <span className="font-medium truncate">
         {formattedName}

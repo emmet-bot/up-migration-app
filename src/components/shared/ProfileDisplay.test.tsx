@@ -8,6 +8,14 @@ vi.mock('@/lib/utils/identicon', () => ({
     address ? `data:image/png;base64,mock-identicon-${address.slice(0, 6)}` : '',
 }));
 
+// Mock the useImagePreload hook to return loaded immediately in tests
+vi.mock('@/hooks/useProfileData', () => ({
+  useImagePreload: (src: string | null | undefined) => ({
+    loaded: !!src, // Mark as loaded if src is provided
+    error: false,
+  }),
+}));
+
 describe('ProfileDisplay', () => {
   const testAddress = '0xa1b2c3d4e5f6789012345678901234567890abcd';
 

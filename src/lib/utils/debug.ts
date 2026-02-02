@@ -8,7 +8,7 @@
  */
 
 /** Current application version for debug output */
-export const APP_VERSION = 'v9';
+export const APP_VERSION = 'v11';
 
 /**
  * Creates a logger instance with a consistent prefix.

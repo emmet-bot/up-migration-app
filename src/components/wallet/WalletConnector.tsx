@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { ProfileMicroHeader } from '@/components/shared/ProfileIdentityCard';
 import { useWallet } from '@/contexts/WalletContext';
 import { shortenAddress } from '@/lib/utils/format';
 
@@ -157,6 +158,7 @@ export function WalletConnector({
 
 /**
  * Compact version for headers/nav
+ * Shows profile picture + name/address when connected
  */
 export function WalletConnectorCompact({ className }: { className?: string }) {
   const {
@@ -180,8 +182,16 @@ export function WalletConnectorCompact({ className }: { className?: string }) {
 
   if (isConnected && address) {
     return (
-      <Button variant="outline" size="sm" onClick={disconnect} className={className}>
-        {shortenAddress(address)}
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={disconnect} 
+        className={`h-auto py-1.5 px-3 ${className}`}
+      >
+        <ProfileMicroHeader 
+          address={address} 
+          network={network}
+        />
         {walletSource === 'up-provider' && (
           <span className="ml-1 text-xs opacity-70">UP</span>
         )}

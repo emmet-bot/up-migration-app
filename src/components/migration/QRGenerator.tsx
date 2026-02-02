@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { shortenAddress, copyToClipboard } from '@/lib/utils/format';
+import { ProfileIdentityCard } from '@/components/shared/ProfileIdentityCard';
+import { copyToClipboard } from '@/lib/utils/format';
 import type { AuthorizationPackage } from '@/types/auth-package';
 
 interface QRGeneratorProps {
@@ -67,28 +68,34 @@ export function QRGenerator({ authPackage, deepLinkUrl }: QRGeneratorProps) {
           </Button>
         </div>
 
-        {/* Controller Info */}
-        <div className="p-4 bg-muted rounded-lg space-y-3">
+        {/* Profile & Controller Info */}
+        <div className="p-4 bg-muted rounded-lg space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Target App</span>
             <Badge variant="secondary">{authPackage.targetApp.name}</Badge>
           </div>
 
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Profile</span>
-            <span className="font-mono text-sm">
-              {shortenAddress(authPackage.profileAddress)}
-            </span>
+          {/* Profile Identity */}
+          <div>
+            <span className="text-xs text-muted-foreground block mb-2">Profile</span>
+            <ProfileIdentityCard 
+              address={authPackage.profileAddress}
+              network={authPackage.network}
+              size="sm"
+            />
           </div>
 
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Controller</span>
-            <span className="font-mono text-sm">
-              {shortenAddress(authPackage.controllerAddress)}
-            </span>
+          {/* Controller Identity */}
+          <div>
+            <span className="text-xs text-muted-foreground block mb-2">New Controller</span>
+            <ProfileIdentityCard 
+              address={authPackage.controllerAddress}
+              network={authPackage.network}
+              size="sm"
+            />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pt-2 border-t">
             <span className="text-sm text-muted-foreground">Network</span>
             <Badge variant="outline" className="capitalize">
               {authPackage.network}

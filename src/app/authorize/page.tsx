@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { PermissionSelector } from '@/components/migration/PermissionSelector';
 import { MigrationStatus } from '@/components/migration/MigrationStatus';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-import { AddressWithIdenticon } from '@/components/shared/ProfileDisplay';
+import { ProfileIdentityCard } from '@/components/shared/ProfileIdentityCard';
 import { WalletConnector, WalletConnectorCompact } from '@/components/wallet/WalletConnector';
 import { useWallet } from '@/contexts/WalletContext';
 import { extractAuthPackageFromURL } from '@/lib/auth-package/decode';
@@ -366,16 +366,26 @@ function AuthorizeContent() {
 
               <Separator />
 
-              {/* Profile & Controller Info */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Profile</span>
-                  <AddressWithIdenticon address={authPackage.profileAddress} />
+              {/* Profile & Controller Identity Cards */}
+              <div className="space-y-4">
+                {/* Profile being authorized */}
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <span className="text-xs text-muted-foreground block mb-2">Profile</span>
+                  <ProfileIdentityCard 
+                    address={authPackage.profileAddress}
+                    network={authPackage.network}
+                    size="md"
+                  />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">New Controller</span>
-                  <AddressWithIdenticon address={authPackage.controllerAddress} />
+                {/* New Controller */}
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <span className="text-xs text-muted-foreground block mb-2">New Controller</span>
+                  <ProfileIdentityCard 
+                    address={authPackage.controllerAddress}
+                    network={authPackage.network}
+                    size="md"
+                  />
                 </div>
 
                 <div className="flex items-center justify-between">

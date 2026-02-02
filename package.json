@@ -1,5 +1,5 @@
 {
-  "name": "up-migration-app",
+  "name": "tools-up-import-app",
   "version": "0.1.0",
   "private": true,
   "scripts": {

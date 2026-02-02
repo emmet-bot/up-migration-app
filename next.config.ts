@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   },
   
   // For GitHub Pages or similar hosting, you might need a basePath
-  basePath: '/up-migration-app',
+  basePath: '/tools-up-import-app',
   
   // Strict mode for better development experience
   reactStrictMode: true,

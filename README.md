@@ -1,6 +1,6 @@
-# Universal Profile Migration Mini-App
+# Universal Profile import app
 
-A mini-app that facilitates Universal Profile (UP) migration between controller applications on LUKSO. Enables users to authorize new controllers on their UP, allowing them to seamlessly transition from one wallet/app to another without losing access to their digital identity.
+An app that facilitates Universal Profile (UP) import between controller applications on LUKSO. Enables users to authorize new controllers on their UP, allowing them to seamlessly import their profile to a new wallet/app without losing access to their digital identity.
 
 ![LUKSO](https://lukso.network/assets/images/logo.svg)
 
@@ -33,8 +33,8 @@ A mini-app that facilitates Universal Profile (UP) migration between controller 
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/up-migration-app.git
-cd up-migration-app
+git clone https://github.com/emmet-bot/tools-up-import-app.git
+cd tools-up-import-app
 
 # Install dependencies
 npm install

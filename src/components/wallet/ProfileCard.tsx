@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent } from '@/components/ui/card';
-import { LuksoProfileAvatar } from '@/components/shared/LuksoProfileAvatar';
+import { CompositeAvatar } from '@/components/shared/CompositeAvatar';
 import { formatUsername } from '@/lib/utils/format';
 import { getBestProfileImage } from '@/lib/indexer/queries';
 import type { ProfileSearchResult } from '@/types/profile';
@@ -19,20 +19,19 @@ export function ProfileCard({ profile, selected, onClick }: ProfileCardProps) {
 
   return (
     <Card
-      className={`
-        transition-all
-        ${selected ? 'ring-2 ring-primary border-primary' : 'hover:border-primary/50'}
-        ${onClick ? 'cursor-pointer' : ''}
-      `}
+      className={[
+        'transition-all',
+        selected ? 'ring-2 ring-primary border-primary' : 'hover:border-primary/50',
+        onClick ? 'cursor-pointer' : '',
+      ].filter(Boolean).join(' ')}
       onClick={onClick}
     >
       <CardContent className="flex items-center gap-4 p-4">
-        {/* LUKSO Profile Avatar */}
-        <LuksoProfileAvatar
+        <CompositeAvatar
           address={profile.id}
-          profileUrl={avatarUrl}
+          avatarUrl={avatarUrl}
+          name={name}
           size="lg"
-          showIdenticon={true}
         />
 
         <div className="flex-1 min-w-0">

@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { CompositeAvatar } from '@/components/shared/CompositeAvatar';
-import { formatUsername } from '@/lib/utils/format';
+import { FormattedUsername } from '@/components/shared/FormattedUsername';
 import { getBestProfileImage } from '@/lib/indexer/queries';
 import type { ProfileSearchResult } from '@/types/profile';
 
@@ -15,7 +15,6 @@ interface ProfileCardProps {
 export function ProfileCard({ profile, selected, onClick }: ProfileCardProps) {
   const avatarUrl = getBestProfileImage(profile.profileImages, 'medium');
   const name = profile.name || profile.fullName;
-  const formattedName = formatUsername(name, profile.id);
 
   return (
     <Card
@@ -35,7 +34,11 @@ export function ProfileCard({ profile, selected, onClick }: ProfileCardProps) {
         />
 
         <div className="flex-1 min-w-0">
-          <span className="font-medium truncate block">{formattedName}</span>
+          <FormattedUsername
+            name={name}
+            address={profile.id}
+            className="font-medium truncate block"
+          />
         </div>
 
         {selected && (

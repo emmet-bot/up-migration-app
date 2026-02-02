@@ -34,6 +34,23 @@ vi.mock('@/components/shared/CompositeAvatar', () => ({
   ),
 }));
 
+// Mock the FormattedUsername component
+vi.mock('@/components/shared/FormattedUsername', () => ({
+  FormattedUsername: ({
+    name,
+    address,
+    className,
+  }: {
+    name: string | null | undefined;
+    address: string;
+    className?: string;
+  }) => {
+    const suffix = address.slice(2, 6).toLowerCase();
+    const displayText = name ? `@${name}#${suffix}` : `#${suffix}`;
+    return <span data-testid="formatted-username" className={className}>{displayText}</span>;
+  },
+}));
+
 describe('ProfileDisplay', () => {
   const testAddress = '0xa1b2c3d4e5f6789012345678901234567890abcd';
 

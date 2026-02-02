@@ -1,7 +1,7 @@
 'use client';
 
 import { CompositeAvatar, SimpleAvatar } from '@/components/shared/CompositeAvatar';
-import { formatUsername } from '@/lib/utils/format';
+import { FormattedUsername } from '@/components/shared/FormattedUsername';
 
 interface ProfileDisplayProps {
   address: string;
@@ -22,7 +22,7 @@ const sizeMap = {
 /**
  * Consistent profile display component showing:
  * - Composite avatar (profile picture with identicon overlay)
- * - Username in @name#abcd format
+ * - Username in @name#abcd format (suffix is grayed)
  */
 export function ProfileDisplay({
   address,
@@ -32,8 +32,6 @@ export function ProfileDisplay({
   className = '',
   showLoadingState = true,
 }: ProfileDisplayProps) {
-  const formattedName = formatUsername(name, address);
-
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <CompositeAvatar
@@ -44,9 +42,11 @@ export function ProfileDisplay({
         showLoadingState={showLoadingState}
       />
 
-      <span className="font-medium truncate">
-        {formattedName}
-      </span>
+      <FormattedUsername
+        name={name}
+        address={address}
+        className="font-medium truncate"
+      />
     </div>
   );
 }
@@ -64,16 +64,17 @@ export function AddressWithIdenticon({
   size?: 'sm' | 'md';
   className?: string;
 }) {
-  // For address-only display, use shortened format
-  const shortAddress = formatUsername(null, address);
-
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <SimpleAvatar
         address={address}
         size={size === 'sm' ? 'xs' : 'sm'}
       />
-      <span className="font-mono text-sm">{shortAddress}</span>
+      <FormattedUsername
+        name={null}
+        address={address}
+        className="font-mono text-sm"
+      />
     </div>
   );
 }

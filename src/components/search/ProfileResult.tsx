@@ -1,7 +1,7 @@
 'use client';
 
 import { CompositeAvatar } from '@/components/shared/CompositeAvatar';
-import { formatUsername } from '@/lib/utils/format';
+import { FormattedUsername } from '@/components/shared/FormattedUsername';
 import { getBestProfileImage } from '@/lib/indexer/queries';
 import type { ProfileSearchResult } from '@/types/profile';
 
@@ -13,7 +13,6 @@ interface ProfileResultProps {
 export function ProfileResult({ profile, onClick }: ProfileResultProps) {
   const avatarUrl = getBestProfileImage(profile.profileImages, 'small');
   const name = profile.name || profile.fullName;
-  const formattedName = formatUsername(name, profile.id);
 
   return (
     <button
@@ -28,7 +27,11 @@ export function ProfileResult({ profile, onClick }: ProfileResultProps) {
       />
 
       <div className="flex-1 min-w-0">
-        <span className="font-medium truncate block">{formattedName}</span>
+        <FormattedUsername
+          name={name}
+          address={profile.id}
+          className="font-medium truncate block"
+        />
       </div>
 
       <svg

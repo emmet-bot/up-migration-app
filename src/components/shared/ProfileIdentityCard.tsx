@@ -2,7 +2,8 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { CompositeAvatar } from '@/components/shared/CompositeAvatar';
-import { formatUsername, shortenAddress } from '@/lib/utils/format';
+import { FormattedUsername } from '@/components/shared/FormattedUsername';
+import { shortenAddress } from '@/lib/utils/format';
 import { useProfileData } from '@/hooks/useProfileData';
 import type { NetworkId } from '@/constants/endpoints';
 
@@ -34,7 +35,7 @@ const sizeMap = {
  * 
  * Displays a profile with:
  * - Composite avatar (profile picture with identicon overlay)
- * - Name (if available)
+ * - Name (if available) with grayed suffix
  * - Address
  * 
  * Supports horizontal (inline) and vertical (stacked) layouts.
@@ -50,7 +51,6 @@ export function ProfileIdentityCard({
 }: ProfileIdentityCardProps) {
   const { name, avatarUrl, isLoading: profileLoading } = useProfileData(address, network);
 
-  const displayName = name ? formatUsername(name, address) : null;
   const displayAddress = showFullAddress ? address : shortenAddress(address);
 
   if (variant === 'vertical') {
@@ -72,10 +72,12 @@ export function ProfileIdentityCard({
         {/* Name */}
         {profileLoading ? (
           <Skeleton className="h-4 w-24" />
-        ) : displayName ? (
-          <span className="font-medium text-sm truncate max-w-full">
-            {displayName}
-          </span>
+        ) : name ? (
+          <FormattedUsername
+            name={name}
+            address={address}
+            className="font-medium text-sm truncate max-w-full"
+          />
         ) : null}
 
         {/* Address */}
@@ -110,10 +112,12 @@ export function ProfileIdentityCard({
           </>
         ) : (
           <>
-            {displayName && (
-              <span className="font-medium text-sm truncate">
-                {displayName}
-              </span>
+            {name && (
+              <FormattedUsername
+                name={name}
+                address={address}
+                className="font-medium text-sm truncate"
+              />
             )}
             <span className="font-mono text-xs text-muted-foreground truncate">
               {displayAddress}

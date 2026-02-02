@@ -2,18 +2,36 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ProfileDisplay, AddressWithIdenticon } from './ProfileDisplay';
 
-// Mock the identicon generator
-vi.mock('@/lib/utils/identicon', () => ({
-  generateIdenticon: (address: string) => 
-    address ? `data:image/png;base64,mock-identicon-${address.slice(0, 6)}` : '',
-}));
-
-// Mock the useImagePreload hook to return loaded immediately in tests
-vi.mock('@/hooks/useProfileData', () => ({
-  useImagePreload: (src: string | null | undefined) => ({
-    loaded: !!src, // Mark as loaded if src is provided
-    error: false,
-  }),
+// Mock the CompositeAvatar component
+vi.mock('@/components/shared/CompositeAvatar', () => ({
+  CompositeAvatar: ({ 
+    address, 
+    avatarUrl, 
+    name,
+    size,
+    showLoadingState,
+    className 
+  }: {
+    address: string;
+    avatarUrl?: string | null;
+    name?: string | null;
+    size?: string;
+    showLoadingState?: boolean;
+    className?: string;
+  }) => (
+    <div 
+      data-testid="composite-avatar"
+      data-address={address}
+      data-avatar-url={avatarUrl || ''}
+      data-name={name || ''}
+      data-size={size}
+      data-show-loading-state={showLoadingState}
+      className={className}
+    />
+  ),
+  SimpleAvatar: ({ address, size }: { address: string; size?: string }) => (
+    <div data-testid="simple-avatar" data-address={address} data-size={size} />
+  ),
 }));
 
 describe('ProfileDisplay', () => {
@@ -42,7 +60,7 @@ describe('ProfileDisplay', () => {
 
   it('should render with avatar URL when provided', () => {
     const avatarUrl = 'https://example.com/avatar.jpg';
-    const { container } = render(
+    render(
       <ProfileDisplay 
         address={testAddress} 
         name="johndoe"
@@ -50,18 +68,11 @@ describe('ProfileDisplay', () => {
       />
     );
     
-    // The Avatar component renders the img inside AvatarImage
-    // Check that the avatar container exists and has the right structure
-    const avatarContainer = container.querySelector('[data-slot="avatar"]') || 
-                           container.querySelector('.relative');
-    expect(avatarContainer).toBeInTheDocument();
-    
-    // The AvatarImage component should have the src set even if not loaded
-    const avatarImg = container.querySelector('img');
-    expect(avatarImg).toBeInTheDocument();
+    const avatar = screen.getByTestId('composite-avatar');
+    expect(avatar).toHaveAttribute('data-avatar-url', avatarUrl);
   });
 
-  it('should show identicon fallback when no avatar URL', () => {
+  it('should render CompositeAvatar with address', () => {
     render(
       <ProfileDisplay 
         address={testAddress} 
@@ -69,13 +80,13 @@ describe('ProfileDisplay', () => {
       />
     );
     
-    // Should have identicon image as fallback
-    const identiconImg = document.querySelector('img[src*="mock-identicon"]');
-    expect(identiconImg).toBeInTheDocument();
+    const avatar = screen.getByTestId('composite-avatar');
+    expect(avatar).toBeInTheDocument();
+    expect(avatar).toHaveAttribute('data-address', testAddress);
   });
 
   it('should apply different sizes', () => {
-    const { rerender, container } = render(
+    const { rerender } = render(
       <ProfileDisplay 
         address={testAddress} 
         name="johndoe"
@@ -83,8 +94,9 @@ describe('ProfileDisplay', () => {
       />
     );
     
-    let avatar = container.querySelector('[class*="h-6 w-6"]');
-    expect(avatar).toBeInTheDocument();
+    // CompositeAvatar sm maps to sm
+    let avatar = screen.getByTestId('composite-avatar');
+    expect(avatar).toHaveAttribute('data-size', 'sm');
     
     rerender(
       <ProfileDisplay 
@@ -94,8 +106,9 @@ describe('ProfileDisplay', () => {
       />
     );
     
-    avatar = container.querySelector('[class*="h-10 w-10"]');
-    expect(avatar).toBeInTheDocument();
+    // CompositeAvatar lg maps to lg
+    avatar = screen.getByTestId('composite-avatar');
+    expect(avatar).toHaveAttribute('data-size', 'lg');
   });
 
   it('should apply custom className', () => {
@@ -123,28 +136,31 @@ describe('AddressWithIdenticon', () => {
     expect(screen.getByText('#a1b2')).toBeInTheDocument();
   });
 
-  it('should show identicon', () => {
+  it('should render SimpleAvatar', () => {
     render(
       <AddressWithIdenticon address={testAddress} />
     );
     
-    const identiconImg = document.querySelector('img[src*="mock-identicon"]');
-    expect(identiconImg).toBeInTheDocument();
+    const avatar = screen.getByTestId('simple-avatar');
+    expect(avatar).toBeInTheDocument();
+    expect(avatar).toHaveAttribute('data-address', testAddress);
   });
 
   it('should apply different sizes', () => {
-    const { rerender, container } = render(
+    const { rerender } = render(
       <AddressWithIdenticon address={testAddress} size="sm" />
     );
     
-    let avatar = container.querySelector('[class*="h-5 w-5"]');
-    expect(avatar).toBeInTheDocument();
+    // SimpleAvatar: sm -> xs
+    let avatar = screen.getByTestId('simple-avatar');
+    expect(avatar).toHaveAttribute('data-size', 'xs');
     
     rerender(
       <AddressWithIdenticon address={testAddress} size="md" />
     );
     
-    avatar = container.querySelector('[class*="h-6 w-6"]');
-    expect(avatar).toBeInTheDocument();
+    // SimpleAvatar: md -> sm
+    avatar = screen.getByTestId('simple-avatar');
+    expect(avatar).toHaveAttribute('data-size', 'sm');
   });
 });

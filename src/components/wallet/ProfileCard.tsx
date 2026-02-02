@@ -1,13 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
+import { LuksoProfileAvatar } from '@/components/shared/LuksoProfileAvatar';
 import { formatUsername } from '@/lib/utils/format';
-import { generateIdenticon } from '@/lib/utils/identicon';
 import { getBestProfileImage } from '@/lib/indexer/queries';
-import { useImagePreload } from '@/hooks/useProfileData';
 import type { ProfileSearchResult } from '@/types/profile';
 
 interface ProfileCardProps {
@@ -18,15 +14,8 @@ interface ProfileCardProps {
 
 export function ProfileCard({ profile, selected, onClick }: ProfileCardProps) {
   const avatarUrl = getBestProfileImage(profile.profileImages, 'medium');
-  const identicon = generateIdenticon(profile.id);
   const name = profile.name || profile.fullName;
   const formattedName = formatUsername(name, profile.id);
-  
-  const { loaded: imageLoaded, error: imageError } = useImagePreload(avatarUrl);
-  const [imageFailed, setImageFailed] = useState(false);
-
-  const showAvatar = avatarUrl && imageLoaded && !imageFailed && !imageError;
-  const showSkeleton = avatarUrl && !imageLoaded && !imageError && !imageFailed;
 
   return (
     <Card
@@ -38,35 +27,13 @@ export function ProfileCard({ profile, selected, onClick }: ProfileCardProps) {
       onClick={onClick}
     >
       <CardContent className="flex items-center gap-4 p-4">
-        <div className="relative h-12 w-12 flex-shrink-0">
-          {showSkeleton ? (
-            <Skeleton className="rounded-full h-12 w-12" />
-          ) : (
-            <Avatar className="h-12 w-12">
-              {showAvatar ? (
-                <AvatarImage 
-                  src={avatarUrl} 
-                  alt={formattedName}
-                  onError={() => setImageFailed(true)}
-                />
-              ) : null}
-              {/* Use identicon as fallback instead of text initials */}
-              <AvatarFallback className="p-0">
-                {identicon ? (
-                  <img
-                    src={identicon}
-                    alt={formattedName}
-                    className="w-full h-full rounded-full"
-                  />
-                ) : (
-                  <span>
-                    {(name || 'UN').slice(0, 2).toUpperCase()}
-                  </span>
-                )}
-              </AvatarFallback>
-            </Avatar>
-          )}
-        </div>
+        {/* LUKSO Profile Avatar */}
+        <LuksoProfileAvatar
+          address={profile.id}
+          profileUrl={avatarUrl}
+          size="lg"
+          showIdenticon={true}
+        />
 
         <div className="flex-1 min-w-0">
           <span className="font-medium truncate block">{formattedName}</span>

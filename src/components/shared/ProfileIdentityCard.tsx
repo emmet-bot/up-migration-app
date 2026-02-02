@@ -1,11 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CompositeAvatar } from '@/components/shared/CompositeAvatar';
 import { formatUsername, shortenAddress } from '@/lib/utils/format';
-import { generateIdenticon } from '@/lib/utils/identicon';
-import { useProfileData, useImagePreload } from '@/hooks/useProfileData';
+import { useProfileData } from '@/hooks/useProfileData';
 import type { NetworkId } from '@/constants/endpoints';
 
 interface ProfileIdentityCardProps {
@@ -25,17 +23,17 @@ interface ProfileIdentityCardProps {
   className?: string;
 }
 
-const avatarSizeClasses = {
-  sm: 'h-8 w-8',
-  md: 'h-10 w-10',
-  lg: 'h-14 w-14',
+const sizeMap = {
+  sm: 'sm' as const,
+  md: 'md' as const,
+  lg: 'xl' as const,
 };
 
 /**
  * Profile Identity Card
  * 
  * Displays a profile with:
- * - Profile picture (with loading state, falls back to identicon)
+ * - Composite avatar (profile picture with identicon overlay)
  * - Name (if available)
  * - Address
  * 
@@ -51,20 +49,9 @@ export function ProfileIdentityCard({
   className = '',
 }: ProfileIdentityCardProps) {
   const { name, avatarUrl, isLoading: profileLoading } = useProfileData(address, network);
-  const { loaded: imageLoaded, error: imageError } = useImagePreload(avatarUrl);
-  const [imageFailed, setImageFailed] = useState(false);
 
-  const identicon = generateIdenticon(address);
   const displayName = name ? formatUsername(name, address) : null;
   const displayAddress = showFullAddress ? address : shortenAddress(address);
-
-  // Determine what to show in avatar
-  const showAvatar = avatarUrl && imageLoaded && !imageFailed && !imageError;
-  const showSkeleton = profileLoading || (avatarUrl && !imageLoaded && !imageError && !imageFailed);
-
-  const handleImageError = () => {
-    setImageFailed(true);
-  };
 
   if (variant === 'vertical') {
     return (
@@ -73,35 +60,14 @@ export function ProfileIdentityCard({
           <span className="text-xs text-muted-foreground">{label}</span>
         )}
         
-        {/* Avatar with loading state */}
-        <div className={`relative ${avatarSizeClasses[size]}`}>
-          {showSkeleton ? (
-            <Skeleton className={`rounded-full ${avatarSizeClasses[size]}`} />
-          ) : (
-            <Avatar className={avatarSizeClasses[size]}>
-              {showAvatar ? (
-                <AvatarImage 
-                  src={avatarUrl} 
-                  alt={displayName || address}
-                  onError={handleImageError}
-                />
-              ) : null}
-              <AvatarFallback className="p-0">
-                {identicon ? (
-                  <img
-                    src={identicon}
-                    alt={displayName || address}
-                    className="w-full h-full rounded-full"
-                  />
-                ) : (
-                  <span className="text-xs">
-                    {(name || 'UP').slice(0, 2).toUpperCase()}
-                  </span>
-                )}
-              </AvatarFallback>
-            </Avatar>
-          )}
-        </div>
+        {/* Composite Avatar */}
+        <CompositeAvatar
+          address={address}
+          avatarUrl={avatarUrl}
+          name={name}
+          size={sizeMap[size]}
+          showLoadingState={true}
+        />
 
         {/* Name */}
         {profileLoading ? (
@@ -123,35 +89,14 @@ export function ProfileIdentityCard({
   // Horizontal layout (default)
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      {/* Avatar with loading state */}
-      <div className={`relative flex-shrink-0 ${avatarSizeClasses[size]}`}>
-        {showSkeleton ? (
-          <Skeleton className={`rounded-full ${avatarSizeClasses[size]}`} />
-        ) : (
-          <Avatar className={avatarSizeClasses[size]}>
-            {showAvatar ? (
-              <AvatarImage 
-                src={avatarUrl} 
-                alt={displayName || address}
-                onError={handleImageError}
-              />
-            ) : null}
-            <AvatarFallback className="p-0">
-              {identicon ? (
-                <img
-                  src={identicon}
-                  alt={displayName || address}
-                  className="w-full h-full rounded-full"
-                />
-              ) : (
-                <span className="text-xs">
-                  {(name || 'UP').slice(0, 2).toUpperCase()}
-                </span>
-              )}
-            </AvatarFallback>
-          </Avatar>
-        )}
-      </div>
+      {/* Composite Avatar */}
+      <CompositeAvatar
+        address={address}
+        avatarUrl={avatarUrl}
+        name={name}
+        size={sizeMap[size]}
+        showLoadingState={true}
+      />
 
       {/* Name and Address */}
       <div className="flex flex-col min-w-0">
@@ -182,7 +127,7 @@ export function ProfileIdentityCard({
 
 /**
  * Compact profile display for headers/navigation.
- * Shows avatar + short address, with optional name on hover.
+ * Shows composite avatar + short address/name.
  */
 export function ProfileMicroHeader({
   address,
@@ -194,42 +139,17 @@ export function ProfileMicroHeader({
   className?: string;
 }) {
   const { name, avatarUrl, isLoading } = useProfileData(address, network);
-  const { loaded: imageLoaded, error: imageError } = useImagePreload(avatarUrl);
-  const [imageFailed, setImageFailed] = useState(false);
-
-  const identicon = generateIdenticon(address);
-  const showAvatar = avatarUrl && imageLoaded && !imageFailed && !imageError;
-  const showSkeleton = isLoading || (avatarUrl && !imageLoaded && !imageError && !imageFailed);
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      {/* Avatar */}
-      <div className="relative h-6 w-6 flex-shrink-0">
-        {showSkeleton ? (
-          <Skeleton className="rounded-full h-6 w-6" />
-        ) : (
-          <Avatar className="h-6 w-6">
-            {showAvatar ? (
-              <AvatarImage 
-                src={avatarUrl} 
-                alt={name || address}
-                onError={() => setImageFailed(true)}
-              />
-            ) : null}
-            <AvatarFallback className="p-0 text-[10px]">
-              {identicon ? (
-                <img
-                  src={identicon}
-                  alt={name || address}
-                  className="w-full h-full rounded-full"
-                />
-              ) : (
-                <span>{(name || 'UP').slice(0, 2).toUpperCase()}</span>
-              )}
-            </AvatarFallback>
-          </Avatar>
-        )}
-      </div>
+      {/* Composite Avatar */}
+      <CompositeAvatar
+        address={address}
+        avatarUrl={avatarUrl}
+        name={name}
+        size="sm"
+        showLoadingState={true}
+      />
 
       {/* Short address or name */}
       <span className="text-sm font-medium truncate">

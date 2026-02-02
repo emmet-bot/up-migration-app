@@ -14,16 +14,38 @@ vi.mock('@/hooks/useProfileData', () => ({
     isLoading: false,
     error: null,
   }),
-  useImagePreload: (src: string | null | undefined) => ({
-    loaded: !!src,
-    error: false,
-  }),
 }));
 
-// Mock the identicon generator
-vi.mock('@/lib/utils/identicon', () => ({
-  generateIdenticon: (address: string) =>
-    address ? `data:image/png;base64,mock-identicon-${address.slice(0, 6)}` : '',
+// Mock the CompositeAvatar component
+vi.mock('@/components/shared/CompositeAvatar', () => ({
+  CompositeAvatar: ({ 
+    address, 
+    avatarUrl, 
+    name,
+    size,
+    showLoadingState,
+    className 
+  }: {
+    address: string;
+    avatarUrl?: string | null;
+    name?: string | null;
+    size?: string;
+    showLoadingState?: boolean;
+    className?: string;
+  }) => (
+    <div 
+      data-testid="composite-avatar"
+      data-address={address}
+      data-avatar-url={avatarUrl || ''}
+      data-name={name || ''}
+      data-size={size}
+      data-show-loading-state={showLoadingState}
+      className={className}
+    />
+  ),
+  SimpleAvatar: ({ address, size }: { address: string; size?: string }) => (
+    <div data-testid="simple-avatar" data-address={address} data-size={size} />
+  ),
 }));
 
 describe('ProfileIdentityCard', () => {
@@ -74,17 +96,15 @@ describe('ProfileIdentityCard', () => {
     expect(screen.getByText('Profile Owner')).toBeInTheDocument();
   });
 
-  it('should apply different sizes', () => {
-    const { container, rerender } = render(
-      <ProfileIdentityCard address={testAddress} size="sm" />
-    );
+  it('should render CompositeAvatar with correct props', () => {
+    render(<ProfileIdentityCard address={testAddress} size="lg" />);
     
-    let avatar = container.querySelector('[class*="h-8 w-8"]');
+    const avatar = screen.getByTestId('composite-avatar');
     expect(avatar).toBeInTheDocument();
-
-    rerender(<ProfileIdentityCard address={testAddress} size="lg" />);
-    avatar = container.querySelector('[class*="h-14 w-14"]');
-    expect(avatar).toBeInTheDocument();
+    expect(avatar).toHaveAttribute('data-address', testAddress);
+    expect(avatar).toHaveAttribute('data-avatar-url', 'https://example.com/avatar.jpg');
+    expect(avatar).toHaveAttribute('data-size', 'xl'); // lg maps to xl in sizeMap
+    expect(avatar).toHaveAttribute('data-show-loading-state', 'true');
   });
 
   it('should apply custom className', () => {
@@ -103,7 +123,7 @@ describe('ProfileMicroHeader', () => {
   it('should render profile name when available', () => {
     render(<ProfileMicroHeader address={testAddress} />);
 
-    // Should show truncated name
+    // Should show name (not truncated since it's short)
     expect(screen.getByText('testuser')).toBeInTheDocument();
   });
 
@@ -114,14 +134,12 @@ describe('ProfileMicroHeader', () => {
     expect(screen.getByText('0x0000...0001')).toBeInTheDocument();
   });
 
-  it('should have compact styling', () => {
-    const { container } = render(
-      <ProfileMicroHeader address={testAddress} />
-    );
-
-    // Should have small avatar
-    const avatar = container.querySelector('[class*="h-6 w-6"]');
+  it('should render CompositeAvatar with small size', () => {
+    render(<ProfileMicroHeader address={testAddress} />);
+    
+    const avatar = screen.getByTestId('composite-avatar');
     expect(avatar).toBeInTheDocument();
+    expect(avatar).toHaveAttribute('data-size', 'sm');
   });
 
   it('should apply custom className', () => {

@@ -164,13 +164,17 @@ export default function TargetPage() {
 
   /**
    * Navigate back (to previous step or home).
-   * Disconnects wallet when leaving the page entirely.
+   * Going back to step 0 or beyond disconnects and goes home,
+   * because step 0 auto-advances when connected (creating a loop).
    */
   const goBack = () => {
-    if (step > 0) {
+    if (step > 1) {
+      // Going back within the flow (e.g. step 2 → step 1)
       setStep(step - 1);
       setError(null);
     } else {
+      // Going back from step 0 or 1 → disconnect and go home
+      // Step 0 auto-advances when connected, so we can't stay there
       disconnect();
       router.push('/');
     }

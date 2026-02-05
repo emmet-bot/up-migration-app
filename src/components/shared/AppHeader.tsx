@@ -28,12 +28,12 @@ export function AppHeader() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="./logo-square.png"
-            alt="UP Import Logo"
+            alt="UP Authorize Logo"
             width={32}
             height={32}
             className="rounded"
           />
-          <span className="font-bold text-lg">UP Import</span>
+          <span className="font-bold text-lg">UP Authorize</span>
         </a>
         <nav className="flex items-center gap-4">
           <a

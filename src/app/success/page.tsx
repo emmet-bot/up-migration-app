@@ -28,7 +28,7 @@ export default function SuccessPage() {
               />
             </svg>
           </div>
-          <CardTitle className="text-2xl">Migration Complete!</CardTitle>
+          <CardTitle className="text-2xl">Authorization Complete!</CardTitle>
           <CardDescription>
             Your Universal Profile controller has been successfully authorized
           </CardDescription>

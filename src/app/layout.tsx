@@ -15,18 +15,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Universal Profile import app',
-  description: 'Import your Universal Profile to a new wallet. Securely authorize new controllers for your LUKSO Universal Profile.',
+  title: 'Universal Profile Authorize',
+  description: 'Authorize new controllers for your Universal Profile. Securely authorize new controllers for your LUKSO Universal Profile.',
   keywords: ['LUKSO', 'Universal Profile', 'UP', 'import', 'wallet', 'blockchain', 'migration'],
   openGraph: {
-    title: 'Universal Profile import app',
-    description: 'Import your Universal Profile to a new wallet',
+    title: 'Universal Profile Authorize',
+    description: 'Authorize new controllers for your Universal Profile',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Universal Profile import app',
-    description: 'Import your Universal Profile to a new wallet',
+    title: 'Universal Profile Authorize',
+    description: 'Authorize new controllers for your Universal Profile',
   },
   icons: {
     icon: '/icon.png',
@@ -54,7 +54,7 @@ export default function RootLayout({
             {/* Footer */}
             <footer className="border-t py-6">
               <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-                <p>Universal Profile import app — Built for the LUKSO ecosystem</p>
+                <p>Universal Profile Authorize — Built for the LUKSO ecosystem</p>
                 <p className="mt-1 text-xs opacity-50">v{process.env.NEXT_PUBLIC_APP_VERSION}</p>
               </div>
             </footer>

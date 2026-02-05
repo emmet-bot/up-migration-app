@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
   },
   
   // For GitHub Pages or similar hosting, you might need a basePath
-  basePath: '/tools-up-import-app',
+  basePath: '/service-up-authorize-website',
   
   // Strict mode for better development experience
   reactStrictMode: true,

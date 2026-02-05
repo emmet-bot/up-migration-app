@@ -122,7 +122,7 @@ export function extractAuthPackageFromURL(url: URL | string): AuthorizationPacka
       network: validNetwork,
       timestamp: Date.now(),
       targetApp: {
-        name: 'UP Migration App',
+        name: 'UP Authorize App',
         url: urlObj.origin,
       },
     };

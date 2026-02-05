@@ -1,4 +1,4 @@
-# Universal Profile import app
+# Universal Profile Authorize
 
 An app that facilitates Universal Profile (UP) import between controller applications on LUKSO. Enables users to authorize new controllers on their UP, allowing them to seamlessly import their profile to a new wallet/app without losing access to their digital identity.
 
@@ -33,8 +33,8 @@ An app that facilitates Universal Profile (UP) import between controller applica
 
 ```bash
 # Clone the repository
-git clone https://github.com/emmet-bot/tools-up-import-app.git
-cd tools-up-import-app
+git clone https://github.com/lukso-network/service-up-authorize-website.git
+cd service-up-authorize-website
 
 # Install dependencies
 npm install

@@ -23,10 +23,10 @@ export default function HomePage() {
       {/* Hero Section */}
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold tracking-tight mb-4">
-          Universal Profile Migration
+          Universal Profile Authorize
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          Seamlessly migrate your Universal Profile between apps and wallets.
+          Seamlessly authorize new controllers for your Universal Profile.
           Keep your identity, authorize new controllers.
         </p>
       </div>
@@ -170,7 +170,7 @@ export default function HomePage() {
             </div>
             <h3 className="font-semibold mb-2">Authorize & Done</h3>
             <p className="text-sm text-muted-foreground">
-              Sign the transaction on your source device to complete migration
+              Sign the transaction on your source device to complete authorization
             </p>
           </div>
         </div>

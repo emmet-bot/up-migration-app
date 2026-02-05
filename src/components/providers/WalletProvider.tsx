@@ -15,9 +15,9 @@ let appKitInitialized = false;
 
 // App metadata
 const metadata = {
-  name: 'UP Migration',
-  description: 'Migrate your Universal Profile between apps and wallets',
-  url: typeof window !== 'undefined' ? window.location.origin : 'https://migrate.universaleverything.io',
+  name: 'UP Authorize',
+  description: 'Authorize new controllers for your Universal Profile',
+  url: typeof window !== 'undefined' ? window.location.origin : 'https://authorize.universaleverything.io',
   icons: ['https://universalprofile.cloud/images/up-logo.png'],
 };
 

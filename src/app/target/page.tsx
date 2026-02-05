@@ -64,7 +64,7 @@ type ImportStatus = 'idle' | 'importing' | 'success' | 'failed';
 const ERROR_NO_PROFILE_NO_IMPORT =
   'Your wallet extension is connected but did not provide a profile address. ' +
   'The up_import method is also not available. Please ensure your wallet extension ' +
-  'supports UP import, or connect with a wallet that has an existing profile.';
+  'supports UP authorize, or connect with a wallet that has an existing profile.';
 
 const ERROR_CONTRACT_AS_CONTROLLER =
   'The connected address is a smart contract (Universal Profile). ' +
@@ -311,7 +311,7 @@ export default function TargetPage() {
       network: network as 'mainnet' | 'testnet',
       timestamp: Date.now(),
       targetApp: {
-        name: 'UP Migration App',
+        name: 'UP Authorize App',
         url: window.location.origin,
       },
     };
@@ -338,7 +338,7 @@ export default function TargetPage() {
       network: network as 'mainnet' | 'testnet',
       timestamp: Date.now(),
       targetApp: {
-        name: 'UP Migration App',
+        name: 'UP Authorize App',
         url: window.location.origin,
       },
     };
@@ -440,7 +440,7 @@ export default function TargetPage() {
         <CardHeader className="text-center">
           <CardTitle>Find Your Profile</CardTitle>
           <CardDescription>
-            Search for the Universal Profile you want to migrate
+            Search for your Universal Profile
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

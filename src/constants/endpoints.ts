@@ -39,4 +39,4 @@ export function getEndpoints(network: NetworkId) {
 export const DEFAULT_NETWORK: NetworkId = 'mainnet';
 
 // Mini-app base URL (for generating authorization links)
-export const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://migrate.universaleverything.io';
+export const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://authorize.universaleverything.io';

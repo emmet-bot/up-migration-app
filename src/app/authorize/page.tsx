@@ -35,6 +35,7 @@ function AuthorizeContent() {
     walletSource,
     isInMiniAppContext,
     sendTransaction,
+    disconnect,
   } = useWallet();
 
   const [authPackage, setAuthPackage] = useState<AuthorizationPackage | null>(null);
@@ -198,6 +199,7 @@ function AuthorizeContent() {
   };
 
   const handleCancel = () => {
+    disconnect();
     router.push('/');
   };
 
@@ -270,7 +272,7 @@ function AuthorizeContent() {
               To authorize a new controller, you need to receive an authorization link from the device
               with the new wallet.
             </p>
-            <Button variant="outline" onClick={() => router.push('/')} className="w-full">
+            <Button variant="outline" onClick={() => { disconnect(); router.push('/'); }} className="w-full">
               Go to Home
             </Button>
 
@@ -338,7 +340,7 @@ function AuthorizeContent() {
             <Alert variant="destructive">
               <AlertDescription>{parseError}</AlertDescription>
             </Alert>
-            <Button onClick={() => router.push('/')} className="w-full">
+            <Button onClick={() => { disconnect(); router.push('/'); }} className="w-full">
               Go to Home
             </Button>
           </CardContent>
@@ -393,7 +395,7 @@ function AuthorizeContent() {
           <Button variant="outline" onClick={handleReset} className="flex-1">
             Try Again
           </Button>
-          <Button variant="outline" onClick={() => router.push('/')} className="flex-1">
+          <Button variant="outline" onClick={() => { disconnect(); router.push('/'); }} className="flex-1">
             Cancel
           </Button>
         </div>

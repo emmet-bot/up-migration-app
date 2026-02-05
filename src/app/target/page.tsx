@@ -90,6 +90,7 @@ export default function TargetPage() {
     requestUpImport,
     isContractAddress,
     isProviderReady,
+    disconnect,
   } = useWallet();
 
   // UI state
@@ -163,12 +164,14 @@ export default function TargetPage() {
 
   /**
    * Navigate back (to previous step or home).
+   * Disconnects wallet when leaving the page entirely.
    */
   const goBack = () => {
     if (step > 0) {
       setStep(step - 1);
       setError(null);
     } else {
+      disconnect();
       router.push('/');
     }
   };
@@ -577,7 +580,7 @@ export default function TargetPage() {
               </ol>
               
               <div className="pt-4">
-                <Button variant="outline" onClick={() => router.push('/')}>
+                <Button variant="outline" onClick={() => { disconnect(); router.push('/'); }}>
                   Done
                 </Button>
               </div>

@@ -97,6 +97,47 @@ export async function isExistingController(
   return permissions !== null && permissions !== 0n;
 }
 
+/**
+ * Find an empty slot in the AddressPermissions[] array
+ * Returns the index of an empty slot (0x0000...0000 address), or null if none found
+ */
+export async function findEmptySlot(
+  client: PublicClient,
+  upAddress: `0x${string}`,
+  arrayLength: bigint
+): Promise<bigint | null> {
+  if (arrayLength === 0n) return null;
+
+  try {
+    const emptyAddress = '0x0000000000000000000000000000000000000000';
+
+    // Read all array elements to find empty slots
+    for (let i = 0n; i < arrayLength; i++) {
+      const indexKey = buildAddressPermissionsIndexKey(i);
+      const addressData = await client.readContract({
+        address: upAddress,
+        abi: UP_ABI,
+        functionName: 'getData',
+        args: [indexKey],
+      });
+
+      // Check if this slot is empty (0x or 0x0000...0000)
+      if (
+        !addressData ||
+        addressData === '0x' ||
+        addressData.toLowerCase() === `0x${emptyAddress.toLowerCase().slice(2).padStart(40, '0')}`
+      ) {
+        return i;
+      }
+    }
+
+    return null; // No empty slots found
+  } catch (error) {
+    console.error('Error finding empty slot:', error);
+    return null;
+  }
+}
+
 export interface AddControllerTransactionData {
   keys: `0x${string}`[];
   values: `0x${string}`[];
@@ -111,39 +152,57 @@ export async function buildAddControllerTransaction(
   upAddress: `0x${string}`,
   authPackage: AuthorizationPackage
 ): Promise<AddControllerTransactionData> {
-  // 1. Get current array length
-  const currentLength = await getControllerArrayLength(client, upAddress);
-  const newLength = currentLength + 1n;
-  const newIndex = currentLength;
-
   const keys: `0x${string}`[] = [];
   const values: `0x${string}`[] = [];
 
-  // 2. Update array length
-  keys.push(DATA_KEYS.AddressPermissionsArray as `0x${string}`);
-  values.push(pad(toHex(newLength), { size: 16 }));
+  // 1. Check if controller already exists
+  const existingPermissions = await getControllerPermissions(
+    client,
+    upAddress,
+    authPackage.controllerAddress
+  );
+  const isExisting = existingPermissions !== null && existingPermissions !== 0n;
 
-  // 3. Add controller address to array at new index
-  keys.push(buildAddressPermissionsIndexKey(newIndex));
-  values.push(authPackage.controllerAddress);
+  // 2. Only add to array if this is a new controller
+  if (!isExisting) {
+    const currentLength = await getControllerArrayLength(client, upAddress);
+    const emptySlot = await findEmptySlot(client, upAddress, currentLength);
 
-  // 4. Set permissions for new controller
+    if (emptySlot !== null) {
+      // Use the empty slot - no need to update array length
+      keys.push(buildAddressPermissionsIndexKey(emptySlot));
+      values.push(authPackage.controllerAddress);
+    } else {
+      // No empty slot found - append to end
+      const newLength = currentLength + 1n;
+
+      // Update array length
+      keys.push(DATA_KEYS.AddressPermissionsArray as `0x${string}`);
+      values.push(pad(toHex(newLength), { size: 16 }));
+
+      // Add controller address to array at new index
+      keys.push(buildAddressPermissionsIndexKey(currentLength));
+      values.push(authPackage.controllerAddress);
+    }
+  }
+
+  // 3. Set permissions for controller (always do this)
   keys.push(buildPermissionsKey(authPackage.controllerAddress));
   values.push(permissionsToHex(BigInt(authPackage.requestedPermissions)));
 
-  // 5. Set allowed calls if specified
+  // 4. Set allowed calls if specified
   if (authPackage.allowedCalls) {
     keys.push(buildAllowedCallsKey(authPackage.controllerAddress));
     values.push(authPackage.allowedCalls as `0x${string}`);
   }
 
-  // 6. Set allowed data keys if specified
+  // 5. Set allowed data keys if specified
   if (authPackage.allowedDataKeys) {
     keys.push(buildAllowedDataKeysKey(authPackage.controllerAddress));
     values.push(authPackage.allowedDataKeys as `0x${string}`);
   }
 
-  // 7. Encode the transaction
+  // 6. Encode the transaction
   const calldata = encodeFunctionData({
     abi: UP_ABI,
     functionName: 'setDataBatch',
@@ -173,15 +232,24 @@ export async function buildSetDataTransaction(
   if (isNewController) {
     // Need to add to the array
     const currentLength = await getControllerArrayLength(client, upAddress);
-    const newLength = currentLength + 1n;
+    const emptySlot = await findEmptySlot(client, upAddress, currentLength);
 
-    // Update array length
-    keys.push(DATA_KEYS.AddressPermissionsArray as `0x${string}`);
-    values.push(pad(toHex(newLength), { size: 16 }));
+    if (emptySlot !== null) {
+      // Use the empty slot - no need to update array length
+      keys.push(buildAddressPermissionsIndexKey(emptySlot));
+      values.push(controllerAddress);
+    } else {
+      // No empty slot found - append to end
+      const newLength = currentLength + 1n;
 
-    // Add controller address to array
-    keys.push(buildAddressPermissionsIndexKey(currentLength));
-    values.push(controllerAddress);
+      // Update array length
+      keys.push(DATA_KEYS.AddressPermissionsArray as `0x${string}`);
+      values.push(pad(toHex(newLength), { size: 16 }));
+
+      // Add controller address to array
+      keys.push(buildAddressPermissionsIndexKey(currentLength));
+      values.push(controllerAddress);
+    }
   }
 
   // Set permissions

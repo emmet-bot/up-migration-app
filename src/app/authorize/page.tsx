@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createPublicClient, http } from 'viem';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,17 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { PermissionSelector } from '@/components/migration/PermissionSelector';
+import { AllowedCallsEditor } from '@/components/migration/AllowedCallsEditor';
+import { AllowedDataKeysEditor } from '@/components/migration/AllowedDataKeysEditor';
 import { MigrationStatus } from '@/components/migration/MigrationStatus';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { ProfileIdentityCard } from '@/components/shared/ProfileIdentityCard';
@@ -19,9 +29,17 @@ import { extractAuthPackageFromURL } from '@/lib/auth-package/decode';
 import { shortenAddress } from '@/lib/utils/format';
 import { lukso, luksoTestnet } from '@/lib/utils/chains';
 import { getEndpoints } from '@/constants/endpoints';
-import { PERMISSION_PRESETS, getActivePermissions, PERMISSION_LABELS, PERMISSIONS } from '@/constants/permissions';
+import { PERMISSION_PRESETS, getActivePermissions, PERMISSION_LABELS, PERMISSIONS, hasPermission } from '@/constants/permissions';
 import { buildSetDataTransaction } from '@/lib/lsp6/transaction';
+import {
+  encodeAllowedCalls,
+  encodeAllowedDataKeys,
+  convertEntriesToAllowedCalls,
+  type AllowedCallEntry,
+  type DataKeyEntry,
+} from '@/lib/lsp6/allowedCalls';
 import type { AuthorizationPackage } from '@/types/auth-package';
+import type { Hex } from 'viem';
 
 function AuthorizeContent() {
   const router = useRouter();
@@ -54,6 +72,102 @@ function AuthorizeContent() {
   const [isManualEntry, setIsManualEntry] = useState(false);
   const [manualEntryError, setManualEntryError] = useState<string | null>(null);
 
+  // AllowedCalls and AllowedDataKeys state
+  const [allowedCallEntries, setAllowedCallEntries] = useState<AllowedCallEntry[]>([]);
+  const [allowedDataKeyEntries, setAllowedDataKeyEntries] = useState<DataKeyEntry[]>([]);
+
+  // SUPER permission confirmation dialog state
+  const [superConfirmDialog, setSuperConfirmDialog] = useState<{
+    open: boolean;
+    type: 'SUPER_CALL' | 'SUPER_SETDATA';
+    pendingPermissions: bigint;
+  }>({ open: false, type: 'SUPER_CALL', pendingPermissions: 0n });
+
+  // SUPER permission interaction: when adding AllowedCalls entries, auto-untick SUPER_CALL and ensure CALL
+  const handleAllowedCallsChange = useCallback((entries: AllowedCallEntry[]) => {
+    setAllowedCallEntries(entries);
+    if (entries.length > 0) {
+      let newPerms = permissions;
+      // Remove SUPER_CALL if it's set
+      if (hasPermission(newPerms, PERMISSIONS.SUPER_CALL)) {
+        newPerms = newPerms ^ PERMISSIONS.SUPER_CALL;
+      }
+      // Ensure CALL is set
+      if (!hasPermission(newPerms, PERMISSIONS.CALL)) {
+        newPerms = newPerms | PERMISSIONS.CALL;
+      }
+      if (newPerms !== permissions) {
+        setPermissions(newPerms);
+      }
+    }
+  }, [permissions]);
+
+  // SUPER permission interaction: when adding AllowedDataKeys entries, auto-untick SUPER_SETDATA and ensure SETDATA
+  const handleAllowedDataKeysChange = useCallback((entries: DataKeyEntry[]) => {
+    setAllowedDataKeyEntries(entries);
+    if (entries.length > 0) {
+      let newPerms = permissions;
+      // Remove SUPER_SETDATA if it's set
+      if (hasPermission(newPerms, PERMISSIONS.SUPER_SETDATA)) {
+        newPerms = newPerms ^ PERMISSIONS.SUPER_SETDATA;
+      }
+      // Ensure SETDATA is set
+      if (!hasPermission(newPerms, PERMISSIONS.SETDATA)) {
+        newPerms = newPerms | PERMISSIONS.SETDATA;
+      }
+      if (newPerms !== permissions) {
+        setPermissions(newPerms);
+      }
+    }
+  }, [permissions]);
+
+  // Handle permission changes from PermissionSelector with SUPER interaction
+  const handlePermissionsChange = useCallback((newPermissions: bigint) => {
+    // Check if SUPER_CALL is being turned ON while AllowedCalls entries exist
+    if (
+      hasPermission(newPermissions, PERMISSIONS.SUPER_CALL) &&
+      !hasPermission(permissions, PERMISSIONS.SUPER_CALL) &&
+      allowedCallEntries.length > 0
+    ) {
+      setSuperConfirmDialog({
+        open: true,
+        type: 'SUPER_CALL',
+        pendingPermissions: newPermissions,
+      });
+      return;
+    }
+
+    // Check if SUPER_SETDATA is being turned ON while AllowedDataKeys entries exist
+    if (
+      hasPermission(newPermissions, PERMISSIONS.SUPER_SETDATA) &&
+      !hasPermission(permissions, PERMISSIONS.SUPER_SETDATA) &&
+      allowedDataKeyEntries.length > 0
+    ) {
+      setSuperConfirmDialog({
+        open: true,
+        type: 'SUPER_SETDATA',
+        pendingPermissions: newPermissions,
+      });
+      return;
+    }
+
+    setPermissions(newPermissions);
+  }, [permissions, allowedCallEntries.length, allowedDataKeyEntries.length]);
+
+  // Confirm SUPER permission: clear entries and apply permissions
+  const confirmSuperPermission = useCallback(() => {
+    if (superConfirmDialog.type === 'SUPER_CALL') {
+      setAllowedCallEntries([]);
+    } else {
+      setAllowedDataKeyEntries([]);
+    }
+    setPermissions(superConfirmDialog.pendingPermissions);
+    setSuperConfirmDialog({ open: false, type: 'SUPER_CALL', pendingPermissions: 0n });
+  }, [superConfirmDialog]);
+
+  const hasSuperCall = hasPermission(permissions, PERMISSIONS.SUPER_CALL);
+  const hasSuperSetData = hasPermission(permissions, PERMISSIONS.SUPER_SETDATA);
+
   // Parse auth package from URL (only runs once on mount)
   // Supports both plain-text format (?profile=...&controller=...&network=...)
   // and legacy base64 format (?data=...&cs=...)
@@ -66,7 +180,7 @@ function AuthorizeContent() {
         try {
           const url = new URL(window.location.href);
           const pkg = extractAuthPackageFromURL(url);
-          
+
           if (pkg) {
             setAuthPackage(pkg);
           } else {
@@ -88,7 +202,7 @@ function AuthorizeContent() {
       try {
         const chain = authPackage?.network === 'mainnet' ? lukso : luksoTestnet;
         const client = createPublicClient({ chain, transport: http() });
-        
+
         const receipt = await client.waitForTransactionReceipt({ hash: txHash });
         if (receipt.status === 'success') {
           setStatus('success');
@@ -170,12 +284,28 @@ function AuthorizeContent() {
         transport: http(),
       });
 
+      // Encode AllowedCalls if any entries exist
+      let encodedAllowedCalls: string | undefined;
+      if (allowedCallEntries.length > 0) {
+        const allowedCalls = convertEntriesToAllowedCalls(allowedCallEntries);
+        encodedAllowedCalls = encodeAllowedCalls(allowedCalls);
+      }
+
+      // Encode AllowedDataKeys if any entries exist
+      let encodedAllowedDataKeys: string | undefined;
+      if (allowedDataKeyEntries.length > 0) {
+        const dataKeys = allowedDataKeyEntries.map(e => e.key as Hex);
+        encodedAllowedDataKeys = encodeAllowedDataKeys(dataKeys);
+      }
+
       // Build the transaction to add the controller with selected permissions
       const txData = await buildSetDataTransaction(
         publicClient,
         authPackage.profileAddress,
         authPackage.controllerAddress,
-        permissions
+        permissions,
+        encodedAllowedCalls,
+        encodedAllowedDataKeys
       );
 
       // Send the transaction using our unified wallet context
@@ -244,8 +374,8 @@ function AuthorizeContent() {
     setShowManualEntry(false);
   };
 
-  const explorerUrl = authPackage 
-    ? getEndpoints(authPackage.network).explorer 
+  const explorerUrl = authPackage
+    ? getEndpoints(authPackage.network).explorer
     : undefined;
 
   // Check for dangerous permissions
@@ -390,7 +520,7 @@ function AuthorizeContent() {
           status="error"
           error={error || 'Unknown error'}
         />
-        
+
         <div className="flex gap-4">
           <Button variant="outline" onClick={handleReset} className="flex-1">
             Try Again
@@ -426,7 +556,7 @@ function AuthorizeContent() {
           </svg>
           Cancel
         </Button>
-        
+
         <WalletConnectorCompact />
       </div>
 
@@ -453,7 +583,7 @@ function AuthorizeContent() {
               </Alert>
             )}
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              {isInMiniAppContext 
+              {isInMiniAppContext
                 ? 'Connect through Universal Everything to authorize'
                 : 'Use the UP Browser Extension or WalletConnect'}
             </p>
@@ -500,7 +630,7 @@ function AuthorizeContent() {
               {walletSource && (
                 <div className="flex justify-center">
                   <Badge variant="outline" className="text-xs">
-                    Connected via {walletSource === 'up-provider' ? 'UP Provider' : 
+                    Connected via {walletSource === 'up-provider' ? 'UP Provider' :
                                    walletSource === 'injected' ? 'Browser Extension' : 'WalletConnect'}
                   </Badge>
                 </div>
@@ -513,7 +643,7 @@ function AuthorizeContent() {
                 {/* Profile being authorized */}
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <span className="text-xs text-muted-foreground block mb-2">Profile</span>
-                  <ProfileIdentityCard 
+                  <ProfileIdentityCard
                     address={authPackage.profileAddress}
                     network={authPackage.network}
                     size="md"
@@ -523,7 +653,7 @@ function AuthorizeContent() {
                 {/* New Controller */}
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <span className="text-xs text-muted-foreground block mb-2">New Controller</span>
-                  <ProfileIdentityCard 
+                  <ProfileIdentityCard
                     address={authPackage.controllerAddress}
                     network={authPackage.network}
                     size="md"
@@ -543,9 +673,39 @@ function AuthorizeContent() {
           {/* Permission Selector - THE AUTHORIZER CHOOSES PERMISSIONS */}
           <PermissionSelector
             permissions={permissions}
-            onPermissionsChange={setPermissions}
+            onPermissionsChange={handlePermissionsChange}
             disabled={status === 'authorizing'}
           />
+
+          {/* AllowedCalls Editor - hidden when SUPER_CALL is enabled */}
+          {hasSuperCall ? (
+            <Alert>
+              <AlertDescription className="text-sm">
+                <strong>SUPER_CALL</strong> is enabled — this controller can call any contract without restrictions. AllowedCalls configuration is not needed.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <AllowedCallsEditor
+              entries={allowedCallEntries}
+              onChange={handleAllowedCallsChange}
+              disabled={status === 'authorizing'}
+            />
+          )}
+
+          {/* AllowedDataKeys Editor - hidden when SUPER_SETDATA is enabled */}
+          {hasSuperSetData ? (
+            <Alert>
+              <AlertDescription className="text-sm">
+                <strong>SUPER_SETDATA</strong> is enabled — this controller can write to any data key without restrictions. AllowedDataKeys configuration is not needed.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <AllowedDataKeysEditor
+              entries={allowedDataKeyEntries}
+              onChange={handleAllowedDataKeysChange}
+              disabled={status === 'authorizing'}
+            />
+          )}
 
           {/* Permission Summary & Actions */}
           <Card>
@@ -573,6 +733,22 @@ function AuthorizeContent() {
                   <span className="text-sm text-muted-foreground">No permissions selected</span>
                 )}
               </div>
+
+              {/* AllowedCalls/DataKeys summary */}
+              {(allowedCallEntries.length > 0 || allowedDataKeyEntries.length > 0) && (
+                <div className="space-y-1">
+                  {allowedCallEntries.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      + {allowedCallEntries.length} AllowedCalls {allowedCallEntries.length === 1 ? 'restriction' : 'restrictions'}
+                    </p>
+                  )}
+                  {allowedDataKeyEntries.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      + {allowedDataKeyEntries.length} AllowedDataKeys {allowedDataKeyEntries.length === 1 ? 'restriction' : 'restrictions'}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {hasDangerousPermissions && (
                 <Alert variant="destructive">
@@ -609,7 +785,7 @@ function AuthorizeContent() {
                   {isValidatingController ? 'Validating...' : status === 'authorizing' ? 'Authorizing...' : 'Authorize'}
                 </Button>
               </div>
-              
+
               {/* Error near buttons */}
               {error && (
                 <Alert variant="destructive" className="w-full">
@@ -618,6 +794,43 @@ function AuthorizeContent() {
               )}
             </CardFooter>
           </Card>
+
+          {/* SUPER Permission Confirmation Dialog */}
+          <Dialog
+            open={superConfirmDialog.open}
+            onOpenChange={(open) => {
+              if (!open) {
+                setSuperConfirmDialog({ open: false, type: 'SUPER_CALL', pendingPermissions: 0n });
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  Enable {superConfirmDialog.type === 'SUPER_CALL' ? 'SUPER_CALL' : 'SUPER_SETDATA'}?
+                </DialogTitle>
+                <DialogDescription>
+                  {superConfirmDialog.type === 'SUPER_CALL'
+                    ? 'Enabling SUPER_CALL bypasses all AllowedCalls restrictions. Your configured AllowedCalls entries will be removed.'
+                    : 'Enabling SUPER_SETDATA bypasses all AllowedDataKeys restrictions. Your configured AllowedDataKeys entries will be removed.'}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setSuperConfirmDialog({ open: false, type: 'SUPER_CALL', pendingPermissions: 0n })}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={confirmSuperPermission}
+                >
+                  Enable &amp; Clear Entries
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </div>

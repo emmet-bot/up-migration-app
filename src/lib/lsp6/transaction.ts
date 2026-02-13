@@ -220,7 +220,9 @@ export async function buildSetDataTransaction(
   client: PublicClient,
   upAddress: `0x${string}`,
   controllerAddress: `0x${string}`,
-  permissions: bigint
+  permissions: bigint,
+  allowedCalls?: string,
+  allowedDataKeys?: string
 ): Promise<`0x${string}`> {
   // Check if controller already exists
   const existingPermissions = await getControllerPermissions(client, upAddress, controllerAddress);
@@ -255,6 +257,18 @@ export async function buildSetDataTransaction(
   // Set permissions
   keys.push(buildPermissionsKey(controllerAddress));
   values.push(permissionsToHex(permissions));
+
+  // Set allowed calls if provided
+  if (allowedCalls) {
+    keys.push(buildAllowedCallsKey(controllerAddress));
+    values.push(allowedCalls as `0x${string}`);
+  }
+
+  // Set allowed data keys if provided
+  if (allowedDataKeys) {
+    keys.push(buildAllowedDataKeysKey(controllerAddress));
+    values.push(allowedDataKeys as `0x${string}`);
+  }
 
   // Encode the transaction
   return encodeFunctionData({

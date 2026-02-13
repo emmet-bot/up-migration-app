@@ -19,7 +19,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import { useAccount, useChainId, useDisconnect as useWagmiDisconnect, useSendTransaction } from 'wagmi';
+import { useAccount, useChainId, useDisconnect as useWagmiDisconnect, useSendTransaction, useSwitchChain } from 'wagmi';
 import { useAppKit } from '@reown/appkit/react';
 import { createPublicClient, http, type PublicClient } from 'viem';
 import { lukso, luksoTestnet } from '@/lib/utils/chains';
@@ -229,6 +229,7 @@ export function WalletContextProvider({ children }: WalletContextProviderProps) 
   const { disconnect: wagmiDisconnect } = useWagmiDisconnect();
   const { open: openAppKit } = useAppKit();
   const { sendTransactionAsync } = useSendTransaction();
+  const { switchChainAsync } = useSwitchChain();
 
   // UP Provider state
   const [upProvider, setUpProvider] = useState<UPClientProvider | null>(null);
@@ -649,9 +650,14 @@ export function WalletContextProvider({ children }: WalletContextProviderProps) 
       }
 
       // Fall back to Wagmi for WalletConnect
-      // Must pass chainId explicitly — wagmi defaults to chain 1 (Ethereum) otherwise
+      // Switch wallet to LUKSO chain if not already on it
+      const targetChainId = chainId ?? 42;
+      if (wagmiChainId !== targetChainId) {
+        logger.log('Switching wallet chain from', wagmiChainId, 'to', targetChainId);
+        await switchChainAsync({ chainId: targetChainId });
+      }
       const hash = await sendTransactionAsync({
-        chainId: chainId ?? 42,
+        chainId: targetChainId,
         to: params.to,
         data: params.data,
         value: params.value,
@@ -662,7 +668,7 @@ export function WalletContextProvider({ children }: WalletContextProviderProps) 
       setError(err instanceof Error ? err.message : 'Transaction failed');
       return null;
     }
-  }, [isConnected, address, walletSource, upProvider, sendTransactionAsync, chainId]);
+  }, [isConnected, address, walletSource, upProvider, sendTransactionAsync, chainId, wagmiChainId, switchChainAsync]);
 
   /**
    * Open the WalletConnect modal.

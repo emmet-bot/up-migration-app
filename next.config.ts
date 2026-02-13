@@ -13,8 +13,8 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   
-  // For GitHub Pages or similar hosting, you might need a basePath
-  basePath: '/service-up-authorize-website',
+  // Custom domain (authorize.universalprofile.cloud) serves from root
+  // basePath only needed when serving from github.io/repo-name/ without custom domain
   
   // Strict mode for better development experience
   reactStrictMode: true,
